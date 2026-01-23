@@ -5,6 +5,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: '/windows_laptop/',
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      external: ['@mediapipe/tasks-vision'],
+      output: {
+        globals: {
+          '@mediapipe/tasks-vision': 'MediaPipe'
+        }
+      }
+    }
+  },
   server: {
     headers: {
       'Content-Type': 'application/wasm'

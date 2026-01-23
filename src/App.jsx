@@ -141,7 +141,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 550 })
       try {
         // Dynamically import MediaPipe
         const { FilesetResolver, FaceLandmarker } = await import(
-          '@mediapipe/tasks-vision@0.10.8'
+          '@mediapipe/tasks-vision'
         )
 
         const vision = await FilesetResolver.forVisionTasks(
