@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSpring, animated } from '@react-spring/web'
+import { FilesetResolver, FaceLandmarker } from '@mediapipe/tasks-vision'
 import LoginPage from './LoginPage'
 
 // App title constant
@@ -139,11 +140,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 550 })
   useEffect(() => {
     const initializeFaceLandmarker = async () => {
       try {
-        // Dynamically import MediaPipe
-        const { FilesetResolver, FaceLandmarker } = await import(
-          '@mediapipe/tasks-vision'
-        )
-
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm'
         )
