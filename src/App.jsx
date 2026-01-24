@@ -398,13 +398,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 510 })
       console.error('Failed to load heart filter image')
     }
 
-    // Preload windows_start.png and bg.png for faster loading
+    // Preload logos
     const preloadImage = (src) => {
       const img = new Image()
       img.src = src
     }
-    preloadImage(windowsStartImg)
-    preloadImage(bgImage)
     preloadImage(letterboxdLogo)
     preloadImage(purblePalaceLogo)
 
@@ -418,16 +416,22 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 510 })
       console.error('Failed to load blood splatter image')
     }
 
+    // Preload all borders
+    const borderMap = {
+      film_frame: new URL('./assets/film_frame.png', import.meta.url).href,
+      filter_border: new URL('./assets/filter_border.png', import.meta.url).href,
+      katana_border: new URL('./assets/katana_border.png', import.meta.url).href
+    }
+    Object.values(borderMap).forEach((borderSrc) => {
+      const borderImg = new Image()
+      borderImg.src = borderSrc
+    })
+
     // Load border if selected
     if (currentBorder !== 'none') {
       // Clear old border reference to prevent glitch during transition
       borderRef.current = null
       
-      const borderMap = {
-        film_frame: new URL('./assets/film_frame.png', import.meta.url).href,
-        filter_border: new URL('./assets/filter_border.png', import.meta.url).href,
-        katana_border: new URL('./assets/katana_border.png', import.meta.url).href
-      }
       const borderImg = new Image()
       borderImg.src = borderMap[currentBorder]
       borderImg.onload = () => {
@@ -1957,7 +1961,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 510 })
                           borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
                           color: '#000080',
                           fontWeight: 'bold',
-                          opacity: isWebcamActive ? 1 : 0.5
+                          opacity: isWebcamActive ? 1 : 0.5,
+                          outline: 'none'
                         }}
                       >
                         &lt;
@@ -1987,7 +1992,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 510 })
                           borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
                           color: '#000080',
                           fontWeight: 'bold',
-                          opacity: isWebcamActive ? 1 : 0.5
+                          opacity: isWebcamActive ? 1 : 0.5,
+                          outline: 'none'
                         }}
                       >
                         &gt;
