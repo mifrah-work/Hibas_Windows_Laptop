@@ -378,7 +378,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
 
     // Load blood splatter
     const splatterImg = new Image()
-    splatterImg.src = '/assets/Blood_Splatter.png'
+    splatterImg.src = new URL('./assets/Blood_Splatter.png', import.meta.url).href
     splatterImg.onload = () => {
       bloodSplatterRef.current = splatterImg
     }
@@ -392,9 +392,9 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
       borderRef.current = null
       
       const borderMap = {
-        film_frame: '/assets/film_frame.png',
-        filter_border: '/assets/filter_border.png',
-        katana_border: '/assets/katana_border.png'
+        film_frame: new URL('./assets/film_frame.png', import.meta.url).href,
+        filter_border: new URL('./assets/filter_border.png', import.meta.url).href,
+        katana_border: new URL('./assets/katana_border.png', import.meta.url).href
       }
       const borderImg = new Image()
       borderImg.src = borderMap[currentBorder]
