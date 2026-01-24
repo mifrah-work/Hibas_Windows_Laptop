@@ -113,10 +113,10 @@ function App() {
   const [dragImageSource, setDragImageSource] = useState(null)
   const [dragImagePos, setDragImagePos] = useState({ x: 0, y: 0 })
   const [kissCamPos, setKissCamPos] = useState({ x: 650, y: 30 })
-const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
+const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 510 })
   const [musicPlayerPos, setMusicPlayerPos] = useState({ x: 1200, y: 530 })
-  const [controlsWindowPos, setControlsWindowPos] = useState({ x: 400, y: 80 })
-  const [trashPos, setTrashPos] = useState({ x: 250, y: 650 })
+  const [controlsWindowPos, setControlsWindowPos] = useState({ x: 310, y: 40 })
+  const [trashPos, setTrashPos] = useState({ x: 250, y: 680 })
   const [purplePalacePos, setPurplePalacePos] = useState({ x: 880, y: 550 })
   const [captureNotificationPos, setCaptureNotificationPos] = useState({ x: 400, y: 200 })
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
