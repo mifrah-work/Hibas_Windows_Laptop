@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSpring, animated } from '@react-spring/web'
+import html2canvas from 'html2canvas'
 import LoginPage from './LoginPage'
 
 // App title constant
@@ -78,11 +79,13 @@ function App() {
   const [showTrash, setShowTrash] = useState(false)
   const [imageToDeletePermanently, setImageToDeletePermanently] = useState(null)
   const [confirmClearTrash, setConfirmClearTrash] = useState(false)
+  const [showSaveOptions, setShowSaveOptions] = useState(false)
   const [sliderPosition, setSliderPosition] = useState(0)
   const [isDraggingSlider, setIsDraggingSlider] = useState(false)
   const [currentSongIndex, setCurrentSongIndex] = useState(0)
   const [audioCurrentTime, setAudioCurrentTime] = useState(0)
   const bgMusicRef = useRef(null)
+  const imageModalRef = useRef(null)
   const [dragState, setDragState] = useState(null)
   const [draggedImageId, setDraggedImageId] = useState(null)
   const [dragImageSource, setDragImageSource] = useState(null)
@@ -238,6 +241,13 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
       setShowControls(false)
     }
   }, [isLoggedIn])
+
+  // Close controls when Michonne overlay is disabled
+  useEffect(() => {
+    if (!showMichonneOverlay && showControls) {
+      setShowControls(false)
+    }
+  }, [showMichonneOverlay])
 
   // Cheek and jawline landmark indices from MediaPipe Face Landmarker
   // Left cheek: index 234, Right cheek: index 454
@@ -1897,7 +1907,9 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                           cursor: 'pointer',
                           backgroundColor: '#c0c0c0',
                           border: '2px solid',
-                          borderColor: '#dfdfdf #808080 #808080 #dfdfdf'
+                          borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
+                          color: '#000080',
+                          fontWeight: 'bold'
                         }}
                       >
                         &lt;
@@ -1923,7 +1935,9 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                           cursor: 'pointer',
                           backgroundColor: '#c0c0c0',
                           border: '2px solid',
-                          borderColor: '#dfdfdf #808080 #808080 #dfdfdf'
+                          borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
+                          color: '#000080',
+                          fontWeight: 'bold'
                         }}
                       >
                         &gt;
@@ -2033,8 +2047,16 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                     playClickSound()
                     setShowControls(!showControls)
                   }}
+                  disabled={!showMichonneOverlay}
                   className="btn btn-primary"
-                  style={{ outline: 'none', color: '#000080', fontWeight: 'bold' }}
+                  style={{ 
+                    outline: 'none', 
+                    color: !showMichonneOverlay ? '#888888' : '#000080', 
+                    fontWeight: 'bold',
+                    opacity: !showMichonneOverlay ? 0.5 : 1,
+                    cursor: !showMichonneOverlay ? 'not-allowed' : 'pointer',
+                    backgroundColor: !showMichonneOverlay ? '#d0d0d0' : '#c0c0c0'
+                  }}
                 >
                   ⊙ {showControls ? 'Hide' : 'Show'} Controls
                 </button>
@@ -3129,7 +3151,9 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
           playClickSound()
           setSelectedImage(null)
         }}>
-          <div style={{
+          <div 
+            ref={imageModalRef}
+            style={{
             backgroundColor: '#c0c0c0',
             border: '2px solid',
             borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
@@ -3210,11 +3234,13 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                           cursor: hasPrev ? 'pointer' : 'not-allowed',
                           fontWeight: 'bold',
                           fontSize: '16px',
-                          backgroundColor: hasPrev ? '#c0c0c0' : '#a0a0a0',
+                          color: hasPrev ? '#dfdfdf' : '#606060',
+                          backgroundColor: hasPrev ? '#c0c0c0' : '#909090',
                           border: '2px solid',
                           borderColor: hasPrev ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
                           position: 'absolute',
-                          left: '5px'
+                          left: '5px',
+                          opacity: hasPrev ? 1 : 0.5
                         }}
                       >
                         ◄
@@ -3249,11 +3275,13 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                           cursor: hasNext ? 'pointer' : 'not-allowed',
                           fontWeight: 'bold',
                           fontSize: '16px',
-                          backgroundColor: hasNext ? '#c0c0c0' : '#a0a0a0',
+                          color: hasNext ? '#dfdfdf' : '#606060',
+                          backgroundColor: hasNext ? '#c0c0c0' : '#909090',
                           border: '2px solid',
                           borderColor: hasNext ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
                           position: 'absolute',
-                          right: '5px'
+                          right: '5px',
+                          opacity: hasNext ? 1 : 0.5
                         }}
                       >
                         ►
@@ -3276,19 +3304,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                     onClick={(e) => {
                       e.stopPropagation()
                       playClickSound()
-                      // Download original image
-                      fetch(selectedImage.dataUrl)
-                        .then(res => res.blob())
-                        .then(blob => {
-                          const url = URL.createObjectURL(blob)
-                          const link = document.createElement('a')
-                          link.href = url
-                          link.download = `${selectedImage.name || `kiss_${selectedImage.id}`}.png`
-                          document.body.appendChild(link)
-                          link.click()
-                          document.body.removeChild(link)
-                          URL.revokeObjectURL(url)
-                        })
+                      setShowSaveOptions(true)
                     }}
                     style={{
                       padding: '6px 14px',
@@ -3477,11 +3493,14 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                           cursor: hasPrev ? 'pointer' : 'not-allowed',
                           fontWeight: 'bold',
                           fontSize: '16px',
-                          backgroundColor: hasPrev ? '#c0c0c0' : '#a0a0a0',
+                          color: hasPrev ? '#dfdfdf' : '#606060',
+                          backgroundColor: hasPrev ? '#c0c0c0' : '#909090',
                           border: '2px solid',
                           borderColor: hasPrev ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
                           position: 'absolute',
-                          left: '5px'
+                          left: '5px',
+                          zIndex: 10,
+                          opacity: hasPrev ? 1 : 0.5
                         }}
                       >
                         ◄
@@ -3517,11 +3536,13 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
                           cursor: hasNext ? 'pointer' : 'not-allowed',
                           fontWeight: 'bold',
                           fontSize: '16px',
-                          backgroundColor: hasNext ? '#c0c0c0' : '#a0a0a0',
+                          color: hasNext ? '#dfdfdf' : '#606060',
+                          backgroundColor: hasNext ? '#c0c0c0' : '#909090',
                           border: '2px solid',
                           borderColor: hasNext ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
                           position: 'absolute',
-                          right: '5px'
+                          right: '5px',
+                          opacity: hasNext ? 1 : 0.5
                         }}
                       >
                         ►
@@ -3714,6 +3735,176 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 480 })
             paddingLeft: '2px'
           }}>
             <span>🎮 Purple Palace - Build Video</span>
+          </div>
+        </div>
+      )}
+
+      {/* Save Options Modal */}
+      {showSaveOptions && selectedImage && (
+        <div
+          onClick={() => setShowSaveOptions(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 10000
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#c0c0c0',
+              border: '2px solid',
+              borderColor: '#ffffff #808080 #808080 #ffffff',
+              boxShadow: '1px 1px 0px #dfdfdf, 2px 2px 0px #808080',
+              width: '350px',
+              fontFamily: 'MS Sans Serif, Arial, sans-serif',
+              fontSize: '11px'
+            }}
+          >
+            {/* Title Bar */}
+            <div
+              style={{
+                background: 'linear-gradient(to right, #000080, #1084d7)',
+                color: '#ffffff',
+                padding: '2px 4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                userSelect: 'none'
+              }}
+            >
+              <span style={{ fontWeight: 'bold', fontSize: '11px' }}>Save As</span>
+              <button
+                onClick={() => setShowSaveOptions(false)}
+                style={{
+                  background: 'linear-gradient(to bottom, #dfdfdf, #808080)',
+                  border: '1px solid',
+                  borderColor: '#ffffff #000000 #000000 #ffffff',
+                  width: '16px',
+                  height: '14px',
+                  padding: '0',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  outline: 'none'
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '20px' }}>
+              <p style={{ margin: '0 0 20px 0', fontSize: '11px' }}>
+                How would you like to save "{selectedImage.name || `kiss_${selectedImage.id}`}.png"?
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {/* Save Just Image */}
+                <button
+                  onClick={() => {
+                    setShowSaveOptions(false)
+                    // Download original image
+                    fetch(selectedImage.dataUrl)
+                      .then(res => res.blob())
+                      .then(blob => {
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = `${selectedImage.name || `kiss_${selectedImage.id}`}.png`
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                        URL.revokeObjectURL(url)
+                      })
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#c0c0c0',
+                    border: '2px solid',
+                    borderColor: '#ffffff #808080 #808080 #ffffff',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    textAlign: 'left',
+                    outline: 'none',
+                    color: '#000080'
+                  }}
+                >
+                  Save Just Image ⋆｡°✩
+                </button>
+
+                {/* Save with File Properties */}
+                <button
+                  onClick={async () => {
+                    setShowSaveOptions(false)
+                    // Capture the image modal as screenshot
+                    if (imageModalRef.current) {
+                      const canvas = await html2canvas(imageModalRef.current, {
+                        backgroundColor: null,
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true
+                      })
+                      canvas.toBlob(blob => {
+                        const url = URL.createObjectURL(blob)
+                        const link = document.createElement('a')
+                        link.href = url
+                        link.download = `${selectedImage.name || `kiss_${selectedImage.id}`}_properties.png`
+                        document.body.appendChild(link)
+                        link.click()
+                        document.body.removeChild(link)
+                        URL.revokeObjectURL(url)
+                      })
+                    }
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#c0c0c0',
+                    border: '2px solid',
+                    borderColor: '#ffffff #808080 #808080 #ffffff',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    textAlign: 'left',
+                    outline: 'none',
+                    color: '#000080'
+                  }}
+                >
+                  Save Image with Microsoft window ⋆｡°✩
+                </button>
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setShowSaveOptions(false)}
+                  style={{
+                    padding: '4px 16px',
+                    backgroundColor: '#c0c0c0',
+                    border: '2px solid',
+                    borderColor: '#ffffff #808080 #808080 #ffffff',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '11px',
+                    outline: 'none',
+                    minWidth: '75px'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
