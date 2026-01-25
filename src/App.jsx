@@ -136,7 +136,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 490 })
   })
   const [bgImagesLoaded, setBgImagesLoaded] = useState(false)
   const [bgImageLoaded, setBgImageLoaded] = useState(false)
-  const [windowsStartImageLoaded, setWindowsStartImageLoaded] = useState(false)
   const [currentFilter, setCurrentFilter] = useState(() => {
     const saved = localStorage.getItem('currentFilter')
     return saved ? JSON.parse(saved) : 'normal'
@@ -166,12 +165,12 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 490 })
   // Fade in animation
   const fadeProps = useSpring({ opacity: 1, from: { opacity: 0 } })
 
-  // Update bgImagesLoaded when both images are loaded
+  // Update bgImagesLoaded when background image is loaded
   useEffect(() => {
-    if (bgImageLoaded && windowsStartImageLoaded) {
+    if (bgImageLoaded) {
       setBgImagesLoaded(true)
     }
-  }, [bgImageLoaded, windowsStartImageLoaded])
+  }, [bgImageLoaded])
 
   // Load captured images from localStorage on mount
   useEffect(() => {
@@ -1485,9 +1484,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 50, y: 490 })
         </div>
       )}
 
-      {/* Hidden img elements to track when images load */}
-      <img src={bgImage} onLoad={() => setBgImageLoaded(true)} style={{ display: 'none' }} />
-      <img src={windowsStartImg} onLoad={() => setWindowsStartImageLoaded(true)} style={{ display: 'none' }} />
+      {/* Hidden img element to track when background image loads */}
+      <img src={bgImage} onLoad={() => setBgImageLoaded(true)} style={{ display: 'none' }} alt="bg" />
 
       {showDesktop ? (
         // Desktop view with folders and camera icon - Two columns layout
