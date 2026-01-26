@@ -135,15 +135,15 @@ function App() {
   // State for overlay positioning
   const [offsetX, setOffsetX] = useState(() => {
     const saved = localStorage.getItem('vijayOffsetX')
-    return saved !== null ? JSON.parse(saved) : -39
+    return saved !== null ? JSON.parse(saved) : 30
   })
   const [offsetY, setOffsetY] = useState(() => {
     const saved = localStorage.getItem('vijayOffsetY')
-    return saved !== null ? JSON.parse(saved) : -338
+    return saved !== null ? JSON.parse(saved) : -289
   })
   const [scale, setScale] = useState(() => {
     const saved = localStorage.getItem('vijayScale')
-    return saved !== null ? JSON.parse(saved) : 1.4
+    return saved !== null ? JSON.parse(saved) : 1.6
   })
   const [rotation, setRotation] = useState(() => {
     const saved = localStorage.getItem('vijayRotation')
@@ -761,8 +761,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       return 'hands_up'
     }
 
-    // Detect hand under chin (lenient - any hand position in lower area)
-    if (isHandUnderChin && !thumbRaised && !indexRaised) {
+    // Detect hand under chin (any hand position in lower area - triggers with 1+ hand)
+    if (isHandUnderChin) {
       return 'hand_under_chin'
     }
 
@@ -2598,10 +2598,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#000080' }}>
                     Changing Vijay Tips:
                   </div>
-                  <div style={{ width: '100%' }}>• Try either putting your hands clasped under your chin or doing a thumbs up, or doing a peace sign pose</div>
-                  <div style={{ width: '100%' }}>• To go back to default "heart hands" vijay, just blink</div>
+                  <div style={{ width: '100%' }}>• Try posing with your hand under your chin, give a thumbs up, or throw up a peace sign</div>
+                  <div style={{ width: '100%' }}>• Blink to switch back to Vijay’s "Heart Hands" pose</div>
                   <div style={{ width: '100%', textAlign: 'center', fontStyle: 'italic', marginTop: '5px' }}>
-                    Thalapathy is a busy man in politics now - sometimes gestures aren't detected, so keep trying! ☆
+                    Thalapathy is a busy man in politics now - sometimes he doesn't detect your gestures, so keep trying! ☆
                   </div>
                   {/* Bow decoration */}
                   <img 
@@ -2840,9 +2840,9 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               <button
                 onClick={() => {
                   playClickSound()
-                  setOffsetX(-39)
-                  setOffsetY(-338)
-                  setScale(1.4)
+                  setOffsetX(30)
+                  setOffsetY(-289)
+                  setScale(1.6)
                   setRotation(0)
                   setBowOffsetX(0)
                   setBowOffsetY(-15)
@@ -4831,7 +4831,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               height: '56px',
               borderRadius: '50%',
               objectFit: 'cover',
-              border: '3px solid rgba(255, 255, 255, 0.6)'
+              border: '3px solid #808080'
             }}
           />
         </button>
