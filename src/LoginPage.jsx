@@ -125,7 +125,7 @@ function LoginPage({ onLogin, onLogout }) {
           zIndex: 9999
         }}
       >
-        Wait for bg image to load before clicking anything!
+        Wait for bg image to fully load before clicking anything!
       </div>
       )}
 

@@ -102,13 +102,6 @@ function App() {
   const overlayImageRef = useRef(null)
   const heartFilterRef = useRef(null)
   const bowFilterRef = useRef(null)
-  const monkeyFilterRef = useRef(null)
-  const monkeyEyesLookingAwayRef = useRef(null)
-  const monkeyTongueStickingOutRef = useRef(null)
-  const monkeyTongueOutRef = useRef(null)
-  const monkeyTeethRef = useRef(null)
-  const monkeyEyesWideOpenRef = useRef(null)
-  const monkeyCloseLippedSmileRef = useRef(null)
   const borderRef = useRef(null)
   const faceLandmarkerRef = useRef(null)
   const animationIdRef = useRef(null)
@@ -124,25 +117,19 @@ function App() {
   const eyesWereClosedRef = useRef(false)  // Tracks if eyes were just closed (for blink detection)
   const musicSliderRef = useRef(null)
   const frameCounterRef = useRef(0)  // Tracks frame number for animated grain
+  const detectedFaceCountRef = useRef(0)  // Tracks current face count for notifications
 
   // State for overlay positioning
-  const [offsetX, setOffsetX] = useState(-4)
-  const [offsetY, setOffsetY] = useState(-81)
+  const [offsetX, setOffsetX] = useState(12)
+  const [offsetY, setOffsetY] = useState(-5)
   const [scale, setScale] = useState(1)
   const [rotation, setRotation] = useState(0)
-  
-  // State for monkey filter positioning
-  const [monkeyOffsetX, setMonkeyOffsetX] = useState(-30)
-  const [monkeyOffsetY, setMonkeyOffsetY] = useState(-26)
-  const [monkeyScale, setMonkeyScale] = useState(1.2)
-  const [monkeyRotation, setMonkeyRotation] = useState(0)
   
   // State for bow filter positioning
   const [bowOffsetX, setBowOffsetX] = useState(0)
   const [bowOffsetY, setBowOffsetY] = useState(10)
   const [bowScale, setBowScale] = useState(0.2)
   const [bowRotation, setBowRotation] = useState(20)
-  const [detectedMonkeyExpression, setDetectedMonkeyExpression] = useState('eyes_looking_away')
   
   const [isWebcamActive, setIsWebcamActive] = useState(false)
   const [cameraError, setCameraError] = useState(null)
@@ -159,6 +146,8 @@ function App() {
   const [downloadsPage, setDownloadsPage] = useState(0)
   const [trashPage, setTrashPage] = useState(0)
   const [captureNotification, setCaptureNotification] = useState(null)
+  const [captureNotificationMessage, setCaptureNotificationMessage] = useState('✓ Image Captured!')
+  const [notificationMessageIndex, setNotificationMessageIndex] = useState(0)
   const [showMusicPlayer, setShowMusicPlayer] = useState(false)
   const [isMusciPlaying, setIsMusicPlaying] = useState(false)
   const [showVijayOverlay, setShowVijayOverlay] = useState(false)
@@ -209,10 +198,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   })
   const [use4Grid, setUse4Grid] = useState(() => {
     const saved = localStorage.getItem('use4Grid')
-    return saved ? JSON.parse(saved) : false
-  })
-  const [useMonkeyFilter, setUseMonkeyFilter] = useState(() => {
-    const saved = localStorage.getItem('useMonkeyFilter')
     return saved ? JSON.parse(saved) : false
   })
   const [currentBorder, setCurrentBorder] = useState(() => {
@@ -321,11 +306,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   useEffect(() => {
     localStorage.setItem('useHeartFilter', JSON.stringify(useHeartFilter))
   }, [useHeartFilter])
-
-  // Persist monkey filter toggle to localStorage
-  useEffect(() => {
-    localStorage.setItem('useMonkeyFilter', JSON.stringify(useMonkeyFilter))
-  }, [useMonkeyFilter])
 
   // Persist bow filter toggle to localStorage
   useEffect(() => {
@@ -495,42 +475,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       img.src = src
     }
 
-    // Load monkey filter variants
-    const monkeyVariants = {
-      eyes_looking_away: new URL('./assets/monkey_filters/eyes_looking_away.png', import.meta.url).href,
-      tongue_sticking_out: new URL('./assets/monkey_filters/tongue_sticking_out.png', import.meta.url).href,
-      tongue_out: new URL('./assets/monkey_filters/tongue_out.png', import.meta.url).href,
-      teeth: new URL('./assets/monkey_filters/teeth.png', import.meta.url).href,
-      eyes_wide_open: new URL('./assets/monkey_filters/eyes_wide_open.png', import.meta.url).href,
-      close_lipped_smile: new URL('./assets/monkey_filters/close_lipped_smile.png', import.meta.url).href
-    }
-
-    Object.entries(monkeyVariants).forEach(([key, src]) => {
-      const img = new Image()
-      img.src = src
-      img.onload = () => {
-        if (key === 'eyes_looking_away') monkeyEyesLookingAwayRef.current = img
-        else if (key === 'tongue_sticking_out') monkeyTongueStickingOutRef.current = img
-        else if (key === 'tongue_out') monkeyTongueOutRef.current = img
-        else if (key === 'teeth') monkeyTeethRef.current = img
-        else if (key === 'eyes_wide_open') monkeyEyesWideOpenRef.current = img
-        else if (key === 'close_lipped_smile') monkeyCloseLippedSmileRef.current = img
-      }
-      img.onerror = () => {
-        console.error(`Failed to load monkey filter: ${key}`)
-      }
-    })
-
-    // Also load default monkey filter for backward compatibility
-    const monkeyImg = new Image()
-    monkeyImg.src = new URL('./assets/monkey_filter.png', import.meta.url).href
-    monkeyImg.onload = () => {
-      monkeyFilterRef.current = monkeyImg
-    }
-    monkeyImg.onerror = () => {
-      console.error('Failed to load monkey filter image')
-    }
-
     // Load bow filter
     const bowImg = new Image()
     bowImg.src = new URL('./assets/bow.png', import.meta.url).href
@@ -561,7 +505,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     miffy: new URL('./assets/borders/miffy.png', import.meta.url).href,
     rajini: new URL('./assets/borders/rajini.png', import.meta.url).href,
     sari: new URL('./assets/borders/sari.png', import.meta.url).href,
-    thali: new URL('./assets/borders/thali.png', import.meta.url).href
+    thali: new URL('./assets/borders/thali.png', import.meta.url).href,
+    chai: new URL('./assets/borders/chai.png', import.meta.url).href
   }
 
   useEffect(() => {
@@ -737,6 +682,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
 
       if (results.faceLandmarks && results.faceLandmarks.length > 0) {
         allDetectedFaces = results.faceLandmarks
+        detectedFaceCountRef.current = results.faceLandmarks.length
         const landmarks = results.faceLandmarks[0]
         allFaceLandmarks = landmarks
 
@@ -802,192 +748,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
             )
             ctx.restore()
             ctx.globalAlpha = 1.0
-          }
-        }
-
-        // Detect facial expression for monkey filter variant
-        let detectedExpression = 'eyes_looking_away' // default
-        const leftEye = landmarks[33]
-        const rightEye = landmarks[263]
-        const upperLip = landmarks[13]
-        const lowerLip = landmarks[14]
-        const leftEyelid = landmarks[159]
-        const rightEyelid = landmarks[386]
-
-        if (leftEye && rightEye && upperLip && lowerLip && leftEyelid && rightEyelid) {
-          // Calculate eye opening (vertical distance between upper and lower eyelids)
-          const eyeOpeningLeft = Math.abs(landmarks[159].y - landmarks[145].y)
-          const eyeOpeningRight = Math.abs(landmarks[386].y - landmarks[374].y)
-          const avgEyeOpening = (eyeOpeningLeft + eyeOpeningRight) / 2
-
-          // Detect wink (only one eye closed)
-          const isLeftEyeClosed = eyeOpeningLeft < 0.015
-          const isRightEyeClosed = eyeOpeningRight < 0.015
-          const isWinking = (isLeftEyeClosed && !isRightEyeClosed) || (!isLeftEyeClosed && isRightEyeClosed)
-          const areBothEyesClosed = isLeftEyeClosed && isRightEyeClosed
-
-          // Calculate mouth opening
-          const mouthOpening = Math.abs(upperLip.y - lowerLip.y)
-
-          // Check for tongue visibility - very sensitive to detect even tiny tongue protrusion
-          const tongueLandmark = landmarks[17] // Tongue tip
-          // Tongue out even with very small protrusion (above lower lip)
-          const isTongueOut = tongueLandmark && tongueLandmark.y > lowerLip.y - 0.03
-
-          // Calculate mouth corners for smile detection
-          const leftMouthCorner = landmarks[61]
-          const rightMouthCorner = landmarks[291]
-          const mouthCornerHeight = (leftMouthCorner.y + rightMouthCorner.y) / 2
-
-          // Determine expression
-          if (isTongueOut && mouthOpening > 0.02 && mouthOpening <= 0.055) {
-            // Tongue detected (only if teeth not detected, and mouth is partially open but not too wide)
-            // Additional check: only show tongue if upper lip is clearly visible (not blocking it with teeth)
-            const upperLipForTongue = landmarks[0]
-            const topToothLine = upperLipForTongue.y - 0.04
-            if (tongueLandmark.y > topToothLine) {
-              detectedExpression = 'tongue_out'
-            }
-          } else if (isWinking) {
-            // Wink detected (one eye closed) - use close_lipped_smile
-            detectedExpression = 'close_lipped_smile'
-          } else if (avgEyeOpening > 0.045) {
-            detectedExpression = 'eyes_wide_open'
-          } else if (mouthCornerHeight < landmarks[10].y - 0.05 && mouthOpening < 0.02) {
-            // Smile detected (mouth corners up, mouth mostly closed)
-            detectedExpression = 'close_lipped_smile'
-          }
-
-          // Detect blink (both eyes close then open)
-          const bothEyesClosedNow = isLeftEyeClosed && isRightEyeClosed
-          const isBlink = eyesWereClosedRef.current && !bothEyesClosedNow && avgEyeOpening > 0.02
-          eyesWereClosedRef.current = bothEyesClosedNow
-
-          // If we have an active expression and user returns to default, only switch if they blink
-          if (hasActiveExpressionRef.current && detectedExpression === 'eyes_looking_away') {
-            // Only go back to default if user blinks
-            if (isBlink) {
-              hasActiveExpressionRef.current = false
-            } else {
-              // Ignore the default detection - keep the active expression
-              detectedExpression = lastExpressionRef.current
-            }
-          } else if (detectedExpression !== 'eyes_looking_away') {
-            // Mark that we have an active expression
-            hasActiveExpressionRef.current = true
-          }
-
-          // Debounce expression changes with different sensitivity levels
-          // Default: less sensitive (10 frames), others: more sensitive (3 frames)
-          if (detectedExpression === lastExpressionRef.current) {
-            expressionFrameCounterRef.current++
-          } else {
-            expressionFrameCounterRef.current = 1
-            lastExpressionRef.current = detectedExpression
-          }
-
-          // Determine required frames based on expression type
-          let requiredFrames = 3 // Default: more sensitive
-          if (detectedExpression === 'eyes_looking_away') {
-            requiredFrames = 10 // Less sensitive for default
-          }
-
-          // Only update state if expression has been stable for required frames
-          if (expressionFrameCounterRef.current >= requiredFrames) {
-            setDetectedMonkeyExpression(detectedExpression)
-          }
-        }
-
-        // Draw monkey filter on right shoulder if enabled
-        if (useMonkeyFilter && allDetectedFaces.length > 0) {
-          // Find the face closest to center of screen (to avoid flickering between multiple users)
-          let centerMostFace = allDetectedFaces[0]
-          let closestDistance = Infinity
-          const screenCenterX = 0.5 // Normalized center X
-          const screenCenterY = 0.5 // Normalized center Y
-
-          allDetectedFaces.forEach((face) => {
-            const nose = face[0] // Nose landmark (index 0)
-            if (nose) {
-              const distanceToCenter = Math.sqrt(
-                Math.pow(nose.x - screenCenterX, 2) + Math.pow(nose.y - screenCenterY, 2)
-              )
-              if (distanceToCenter < closestDistance) {
-                closestDistance = distanceToCenter
-                centerMostFace = face
-              }
-            }
-          })
-
-          // Use only the center-most face for monkey filter
-          const selectedFaceLandmarks = centerMostFace
-          const shoulderLandmarkForMonkey = selectedFaceLandmarks[RIGHT_SHOULDER_INDEX]
-
-          if (shoulderLandmarkForMonkey) {
-            // Select the appropriate monkey filter based on detected expression
-            let monkeyImg = null
-            if (detectedExpression === 'teeth' && monkeyTeethRef.current) {
-              monkeyImg = monkeyTeethRef.current
-            } else if (detectedExpression === 'tongue_out' && monkeyTongueOutRef.current) {
-              monkeyImg = monkeyTongueOutRef.current
-            } else if (detectedExpression === 'tongue_sticking_out' && monkeyTongueStickingOutRef.current) {
-              monkeyImg = monkeyTongueStickingOutRef.current
-            } else if (detectedExpression === 'eyes_wide_open' && monkeyEyesWideOpenRef.current) {
-              monkeyImg = monkeyEyesWideOpenRef.current
-            } else if (detectedExpression === 'close_lipped_smile' && monkeyCloseLippedSmileRef.current) {
-              monkeyImg = monkeyCloseLippedSmileRef.current
-            } else if (monkeyEyesLookingAwayRef.current) {
-              monkeyImg = monkeyEyesLookingAwayRef.current
-            } else if (monkeyFilterRef.current) {
-              monkeyImg = monkeyFilterRef.current
-            }
-
-            if (monkeyImg) {
-              const { pixelX, pixelY } = normalizedToCanvasCoordinates(
-                shoulderLandmarkForMonkey.x,
-                shoulderLandmarkForMonkey.y,
-                canvas.width,
-                canvas.height
-              )
-              
-              // Calculate dynamic scale based on face size (proximity to camera)
-              const leftEye = selectedFaceLandmarks[33]
-              const rightEye = selectedFaceLandmarks[263]
-              
-              let dynamicScale = monkeyScale
-              if (leftEye && rightEye) {
-                const eyeDistance = Math.sqrt(
-                  Math.pow(rightEye.x - leftEye.x, 2) + 
-                  Math.pow(rightEye.y - leftEye.y, 2)
-                )
-                
-                const referenceEyeDistance = 0.15
-                const proximityRatio = eyeDistance / referenceEyeDistance
-                dynamicScale = monkeyScale * proximityRatio
-                // Allow scaling from 0.4 to 2.0 for dynamic movement based on proximity
-                dynamicScale = Math.max(0.4, Math.min(2.0, dynamicScale))
-              }
-              
-              const scaledWidth = monkeyImg.width * dynamicScale
-              const scaledHeight = monkeyImg.height * dynamicScale
-
-              const drawX = pixelX + 40 + monkeyOffsetX
-              const drawY = pixelY + 60 - scaledHeight / 2 + monkeyOffsetY
-
-              ctx.globalAlpha = 1
-              ctx.save()
-              ctx.translate(drawX + scaledWidth / 2, drawY + scaledHeight / 2)
-              ctx.rotate((monkeyRotation * Math.PI) / 180)
-              ctx.drawImage(
-                monkeyImg,
-                -scaledWidth / 2,
-                -scaledHeight / 2,
-                scaledWidth,
-                scaledHeight
-              )
-              ctx.restore()
-              ctx.globalAlpha = 1.0
-            }
           }
         }
       }
@@ -1159,7 +919,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     // Draw border overlay if one is selected
     if (currentBorder !== 'none' && borderRef.current) {
       // Skip drawing non-thali borders here if in 4-grid mode (they'll be drawn on full frame or specific grids after tiling)
-      const shouldSkipForGridMode = use4Grid && currentBorder !== 'thali' && currentBorder !== 'cat'
+      const shouldSkipForGridMode = use4Grid && currentBorder !== 'thali' && currentBorder !== 'chai' && currentBorder !== 'cat'
       
       if (!shouldSkipForGridMode) {
         const borderImg = borderRef.current
@@ -1180,10 +940,19 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         // Special handling for thali - position at bottom of webcam
         if (currentBorder === 'thali') {
           // Position thali at the bottom center of webcam
-          borderWidth = canvas.width * 0.8 // Make it bigger
+          borderWidth = canvas.width * 0.8
           borderHeight = canvas.height * 0.35
           borderX = (canvas.width - borderWidth) / 2 // Center horizontally
           borderY = canvas.height - borderHeight + 80 // Position even lower at bottom of canvas
+        }
+        
+        // Special handling for chai - position at bottom of webcam
+        if (currentBorder === 'chai') {
+          // Position chai at the bottom center of webcam
+          borderWidth = canvas.width * 0.3 // Can be adjusted separately
+          borderHeight = canvas.height * 0.4
+          borderX = (canvas.width - borderWidth) / 2 // Center horizontally
+          borderY = canvas.height - borderHeight + 70 // Position even lower at bottom of canvas
         }
         
         ctx.globalAlpha = borderOpacity
@@ -1246,7 +1015,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       ctx.fillRect(canvas.width - frameWidth / 2, 0, frameWidth / 2, canvas.height)
       
       // Draw non-thali borders on the full frame if selected
-      if (currentBorder !== 'none' && currentBorder !== 'thali' && currentBorder !== 'cat' && borderRef.current) {
+      if (currentBorder !== 'none' && currentBorder !== 'thali' && currentBorder !== 'chai' && currentBorder !== 'cat' && borderRef.current) {
         const borderImg = borderRef.current
         let borderWidth = canvas.width
         let borderHeight = canvas.height
@@ -1292,7 +1061,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         cancelAnimationFrame(animationIdRef.current)
       }
     }
-  }, [isWebcamActive, offsetX, offsetY, scale, rotation, monkeyOffsetX, monkeyOffsetY, monkeyScale, monkeyRotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, currentFilter, use4Grid, useHeartFilter, useMonkeyFilter, useBowFilter, currentBorder, showVijayImage])
+  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, currentBorder, showVijayImage])
 
   // Auto-scroll gallery photos
   useEffect(() => {
@@ -1334,6 +1103,21 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       console.error('Canvas ref not available')
       return
     }
+
+    // Define notification messages based on face count
+    const notificationMessages = {
+      single: ['I LOVE 😍', 'ATEE 💅', 'Cutie! 😝', 'WOW 🫠'],
+      multiple: ['I LOVE 😍', 'ATEE 💅', 'Cuties! 😝', 'WOW 🫠']
+    }
+
+    // Determine which message set to use
+    const faceCount = detectedFaceCountRef.current
+    const messageSet = faceCount > 1 ? notificationMessages.multiple : notificationMessages.single
+    
+    // Cycle through messages
+    const nextIndex = (notificationMessageIndex + 1) % messageSet.length
+    setNotificationMessageIndex(nextIndex)
+    setCaptureNotificationMessage(messageSet[nextIndex])
 
     // Play camera snap sound immediately
     if (cameraSnapAudioRef.current) {
@@ -1888,7 +1672,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
             zIndex: 9999
           }}
         >
-          Wait for bg image to load before clicking anything!
+          Wait for bg img to fully load before clicking anything!
         </div>
       )}
 
@@ -2154,7 +1938,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
           }}
           onMouseDown={(e) => handleMouseDown(e, 'notification', captureNotificationPos)}
         >
-          ✓ Image Captured!
+          {captureNotificationMessage}
         </div>
       )}
 
@@ -2416,7 +2200,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                       <button
                         onClick={() => {
-                          const options = ['none', 'bow', 'cat', 'gem_biscuit', 'malligapoo', 'miffy', 'rajini', 'sari', 'thali']
+                          const options = ['none', 'bow', 'cat', 'gem_biscuit', 'malligapoo', 'miffy', 'rajini', 'sari', 'thali', 'chai']
                           const currentIndex = options.indexOf(currentBorder)
                           const newIndex = (currentIndex - 1 + options.length) % options.length
                           setCurrentBorder(options[newIndex])
@@ -2448,11 +2232,12 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                          currentBorder === 'malligapoo' ? 'Malligapoo' :
                          currentBorder === 'miffy' ? 'Miffy' :
                          currentBorder === 'rajini' ? 'Rajini' :
-                         currentBorder === 'sari' ? 'Sari' : 'Thali'}
+                         currentBorder === 'sari' ? 'Sari' :
+                         currentBorder === 'thali' ? 'Thali' : 'Chai'}
                       </span>
                       <button
                         onClick={() => {
-                          const options = ['none', 'bow', 'cat', 'gem_biscuit', 'malligapoo', 'miffy', 'rajini', 'sari', 'thali']
+                          const options = ['none', 'bow', 'cat', 'gem_biscuit', 'malligapoo', 'miffy', 'rajini', 'sari', 'thali', 'chai']
                           const currentIndex = options.indexOf(currentBorder)
                           const newIndex = (currentIndex + 1) % options.length
                           setCurrentBorder(options[newIndex])
@@ -2487,7 +2272,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       checked={showVijayImage}
                       onChange={(e) => {
                         setShowVijayImage(e.target.checked)
-                        if (e.target.checked) setUseMonkeyFilter(false)
                         playClickSound()
                       }}
                       disabled={!isWebcamActive}
@@ -2510,38 +2294,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       Vijay
                     </label>
                   </div>
-
-                  {/* Monkey Filter Toggle */}
-                  <div style={{ marginTop: '5px', paddingLeft: '0px' }}>
-                    <input
-                      type="checkbox"
-                      id="monkeyFilterToggle"
-                      checked={useMonkeyFilter}
-                      onChange={(e) => {
-                        setUseMonkeyFilter(e.target.checked)
-                        if (e.target.checked) setShowVijayImage(false)
-                        playClickSound()
-                      }}
-                      disabled={!isWebcamActive}
-                      style={{
-                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                        width: '14px',
-                        height: '14px',
-                        opacity: isWebcamActive ? 1 : 0.5
-                      }}
-                    />
-                    <label
-                      htmlFor="monkeyFilterToggle"
-                      style={{
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                        marginLeft: '5px'
-                      }}
-                    >
-                      Monkey
-                    </label>
-                  </div>
                 </div>
               </div>
 
@@ -2558,47 +2310,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   }}
                 }
               />
-
-              {/* Monkey Expression Instructions */}
-              {useMonkeyFilter && (
-                <div style={{
-                  backgroundColor: '#c0c0c0',
-                  border: '1px solid',
-                  borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
-                  padding: '10px',
-                  marginTop: '-60px',
-                  marginLeft: '-150px',
-                  marginBottom: '10px',
-                  fontSize: '11px',
-                  fontFamily: 'Arial, sans-serif',
-                  color: '#000000',
-                  lineHeight: '1.4',
-                  width: '600px',
-                  position: 'relative'
-                }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#000080' }}>
-                    Monkey Expression Tips:
-                  </div>
-                  <div style={{ width: '100%' }}>• Try either winking, sticking your tongue out or opening your eyes wide</div>
-                  <div style={{ width: '100%' }}>• To go back to default "thinking" monkey, just blink</div>
-                  <div style={{ width: '100%', textAlign: 'center', fontStyle: 'italic', marginTop: '5px' }}>The monkeys get a bit lazy - sometimes expressions aren't detected properly, just keep trying ☆</div>
-                  
-                  {/* Bow decoration */}
-                  <img 
-                    src={new URL('./assets/bow.png', import.meta.url).href}
-                    alt="bow"
-                    style={{
-                      position: 'absolute',
-                      right: '-20px',
-                      top: '-20px',
-                      width: '60px',
-                      height: '60px',
-                      transform: 'rotate(30deg)',
-                      opacity: 0.8
-                    }}
-                  />
-                </div>
-              )}
 
               <div className="button-group">
                 <button
@@ -2657,15 +2368,15 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     playClickSound()
                     setShowControls(!showControls)
                   }}
-                  disabled={!showVijayImage && !useMonkeyFilter}
+                  disabled={!showVijayImage}
                   className="btn btn-primary"
                   style={{ 
                     outline: 'none', 
-                    color: !showVijayImage && !useMonkeyFilter ? '#888888' : '#000080', 
+                    color: !showVijayImage ? '#888888' : '#000080', 
                     fontWeight: 'bold',
-                    opacity: !showVijayImage && !useMonkeyFilter ? 0.5 : 1,
-                    cursor: !showVijayImage && !useMonkeyFilter ? 'not-allowed' : 'pointer',
-                    backgroundColor: !showVijayImage && !useMonkeyFilter ? '#d0d0d0' : '#c0c0c0'
+                    opacity: !showVijayImage ? 0.5 : 1,
+                    cursor: !showVijayImage ? 'not-allowed' : 'pointer',
+                    backgroundColor: !showVijayImage ? '#d0d0d0' : '#c0c0c0'
                   }}
                 >
                   ⊙ {showControls ? 'Hide' : 'Show'} Controls
@@ -2809,87 +2520,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   </>
                 )}
 
-                {useMonkeyFilter && (
-                  <>
-                    <h3>Monkey Position & Size</h3>
-
-                    <div className="control-group">
-                      <label>
-                        Offset X: <span className="value">{monkeyOffsetX}</span>
-                      </label>
-                      <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
-                        <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
-                        <input
-                          type="range"
-                          min="-150"
-                          max="150"
-                          value={monkeyOffsetX}
-                          onChange={(e) => setMonkeyOffsetX(Number(e.target.value))}
-                          className="slider"
-                          style={{ position: 'relative', zIndex: 1, width: '100%' }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="control-group">
-                      <label>
-                        Offset Y: <span className="value">{monkeyOffsetY}</span>
-                      </label>
-                      <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
-                        <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
-                        <input
-                          type="range"
-                          min="-150"
-                          max="150"
-                          value={monkeyOffsetY}
-                          onChange={(e) => setMonkeyOffsetY(Number(e.target.value))}
-                          className="slider"
-                          style={{ position: 'relative', zIndex: 1, width: '100%' }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="control-group">
-                      <label>
-                        Scale: <span className="value">{monkeyScale.toFixed(2)}x</span>
-                      </label>
-                      <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
-                        <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="3"
-                          step="0.1"
-                          value={monkeyScale}
-                          onChange={(e) => setMonkeyScale(Number(e.target.value))}
-                          className="slider"
-                          style={{ position: 'relative', zIndex: 1, width: '100%' }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="control-group">
-                      <label>
-                        Rotation: <span className="value">{monkeyRotation}°</span>
-                      </label>
-                      <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
-                        <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
-                        <input
-                          type="range"
-                          min="-180"
-                          max="180"
-                          value={monkeyRotation}
-                          onChange={(e) => setMonkeyRotation(Number(e.target.value))}
-                          className="slider"
-                          style={{ position: 'relative', zIndex: 1, width: '100%' }}
-                        />
-                      </div>
-                    </div>
-
-                    <p className="tips">💡 Adjust the controls to change Monkey's position to your liking, then capture!</p>
-                  </>
-                )}
-
 
               </>
             )}
@@ -2901,14 +2531,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               <button
                 onClick={() => {
                   playClickSound()
-                  setOffsetX(-4)
-                  setOffsetY(-81)
+                  setOffsetX(12)
+                  setOffsetY(-5)
                   setScale(1)
                   setRotation(0)
-                  setMonkeyOffsetX(-30)
-                  setMonkeyOffsetY(-26)
-                  setMonkeyScale(1.4)
-                  setMonkeyRotation(0)
                   setBowOffsetX(0)
                   setBowOffsetY(-15)
                   setBowScale(0.2)
