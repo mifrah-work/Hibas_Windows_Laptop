@@ -178,6 +178,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   const [showGallery, setShowGallery] = useState(false)
   const [galleryPos, setGalleryPos] = useState({ x: 900, y: 475 })
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0)
+  const [galleryImagesLoaded, setGalleryImagesLoaded] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     const saved = localStorage.getItem('isLoggedIn')
     return saved ? JSON.parse(saved) : false
@@ -514,15 +515,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     Object.values(borderMap).forEach((borderSrc) => {
       const borderImg = new Image()
       borderImg.src = borderSrc
-    })
-  }, [])
-
-  // Preload all gallery photos
-  useEffect(() => {
-    const photoNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    photoNumbers.forEach((num) => {
-      const photoImg = new Image()
-      photoImg.src = new URL(`./assets/photos/${num}.png`, import.meta.url).href
     })
   }, [])
 
@@ -1072,16 +1064,47 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     }
   }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, currentBorder, showVijayImage])
 
-  // Auto-scroll gallery photos
+  // Preload gallery images when gallery opens
   useEffect(() => {
     if (!showGallery) return
+    
+    setGalleryImagesLoaded(false)
+    let loadedCount = 0
+    const totalImages = GALLERY_PHOTOS.length
+    
+    // Preload all images
+    const preloadPromises = GALLERY_PHOTOS.map((photoSrc) => {
+      return new Promise((resolve) => {
+        const img = new Image()
+        img.onload = () => {
+          loadedCount++
+          if (loadedCount === totalImages) {
+            setGalleryImagesLoaded(true)
+          }
+          resolve()
+        }
+        img.onerror = () => {
+          loadedCount++
+          if (loadedCount === totalImages) {
+            setGalleryImagesLoaded(true)
+          }
+          resolve()
+        }
+        img.src = photoSrc
+      })
+    })
+  }, [showGallery])
+
+  // Auto-scroll gallery photos (only when images are loaded)
+  useEffect(() => {
+    if (!showGallery || !galleryImagesLoaded) return
     
     const interval = setInterval(() => {
       setCurrentPhotoIndex((prevIndex) => (prevIndex + 1) % GALLERY_PHOTOS.length)
     }, 1000) // Change photo every 1 second
 
     return () => clearInterval(interval)
-  }, [showGallery])
+  }, [showGallery, galleryImagesLoaded])
 
   // Compress canvas to JPEG for smaller file size
   const compressCanvasToJpeg = (canvas, quality = 0.7) => {
@@ -4239,17 +4262,32 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: '#000000',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            flexDirection: 'column'
           }}>
-            <img 
-              src={GALLERY_PHOTOS[currentPhotoIndex]}
-              alt={`Photo ${currentPhotoIndex + 1}`}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'contain'
-              }}
-            />
+            {!galleryImagesLoaded ? (
+              <div style={{
+                color: '#ffff00',
+                textAlign: 'center',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                fontFamily: 'Arial, sans-serif'
+              }}>
+                <div>images loading...</div>
+                <div style={{ marginTop: '8px', fontSize: '16px' }}>⋆｡°✩</div>
+                <div style={{ marginTop: '8px', fontSize: '12px' }}>pls wait</div>
+              </div>
+            ) : (
+              <img 
+                src={GALLERY_PHOTOS[currentPhotoIndex]}
+                alt={`Photo ${currentPhotoIndex + 1}`}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  objectFit: 'contain'
+                }}
+              />
+            )}
           </div>
 
           {/* Status bar */}
