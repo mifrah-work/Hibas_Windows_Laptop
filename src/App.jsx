@@ -118,12 +118,37 @@ function App() {
   const musicSliderRef = useRef(null)
   const frameCounterRef = useRef(0)  // Tracks frame number for animated grain
   const detectedFaceCountRef = useRef(0)  // Tracks current face count for notifications
+  const handLandmarkerRef = useRef(null)
+  const currentVijayPoseRef = useRef('default')
+  const cachedVijayImagesRef = useRef({}) // Cache loaded images
+  const hasActivePoseRef = useRef(false) // Tracks if we have an active hand pose
+  const lastDetectedPoseRef = useRef(null) // Track last detected pose for debouncing
+  const poseFrameCounterRef = useRef(0) // Debounce frame counter for pose stability
+  const eyeStateRef = useRef(false) // Track blink state for hand poses
+  const vijayPoseImagesRef = useRef({
+    default: new URL('./assets/vijay_filters/vijay.png', import.meta.url).href,
+    hands_up: new URL('./assets/vijay_filters/hands_up.png', import.meta.url).href,
+    thumbs_up: new URL('./assets/vijay_filters/thumbs_up.png', import.meta.url).href,
+    hand_under_chin: new URL('./assets/vijay_filters/hand_under_chin.png', import.meta.url).href
+  })
 
   // State for overlay positioning
-  const [offsetX, setOffsetX] = useState(12)
-  const [offsetY, setOffsetY] = useState(-90)
-  const [scale, setScale] = useState(0.9)
-  const [rotation, setRotation] = useState(0)
+  const [offsetX, setOffsetX] = useState(() => {
+    const saved = localStorage.getItem('vijayOffsetX')
+    return saved !== null ? JSON.parse(saved) : -39
+  })
+  const [offsetY, setOffsetY] = useState(() => {
+    const saved = localStorage.getItem('vijayOffsetY')
+    return saved !== null ? JSON.parse(saved) : -338
+  })
+  const [scale, setScale] = useState(() => {
+    const saved = localStorage.getItem('vijayScale')
+    return saved !== null ? JSON.parse(saved) : 1.4
+  })
+  const [rotation, setRotation] = useState(() => {
+    const saved = localStorage.getItem('vijayRotation')
+    return saved !== null ? JSON.parse(saved) : 0
+  })
   
   // State for bow filter positioning
   const [bowOffsetX, setBowOffsetX] = useState(0)
@@ -303,6 +328,23 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     localStorage.setItem('use4Grid', JSON.stringify(use4Grid))
   }, [use4Grid])
 
+  // Persist Vijay position to localStorage
+  useEffect(() => {
+    localStorage.setItem('vijayOffsetX', JSON.stringify(offsetX))
+  }, [offsetX])
+
+  useEffect(() => {
+    localStorage.setItem('vijayOffsetY', JSON.stringify(offsetY))
+  }, [offsetY])
+
+  useEffect(() => {
+    localStorage.setItem('vijayScale', JSON.stringify(scale))
+  }, [scale])
+
+  useEffect(() => {
+    localStorage.setItem('vijayRotation', JSON.stringify(rotation))
+  }, [rotation])
+
   // Persist heart filter toggle to localStorage
   useEffect(() => {
     localStorage.setItem('useHeartFilter', JSON.stringify(useHeartFilter))
@@ -358,7 +400,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8'
         )
 
-        const { FilesetResolver, FaceLandmarker } = visionModule
+        const { FilesetResolver, FaceLandmarker, HandLandmarker } = visionModule
 
         const vision = await FilesetResolver.forVisionTasks(
           'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm'
@@ -373,8 +415,18 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
           numFaces: 10,
         })
 
+        const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+          },
+          runningMode: 'VIDEO',
+          numHands: 2,
+        })
+
         faceLandmarkerRef.current = faceLandmarker
-        console.log('Face Landmarker initialized')
+        handLandmarkerRef.current = handLandmarker
+        console.log('Face and Hand Landmarkers initialized')
 
       } catch (err) {
         console.error(err)
@@ -649,6 +701,75 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     ctx.putImageData(imageData, 0, 0)
   }
 
+  // Detect hand pose from hand landmarks
+  const detectHandPose = (handLandmarks) => {
+    if (!handLandmarks || handLandmarks.length === 0) {
+      return 'default'
+    }
+
+    const hand = handLandmarks[0]
+    if (!hand) return 'default'
+
+    // Get key hand joint positions
+    const wrist = hand[0]
+    const thumbTip = hand[4]
+    const indexTip = hand[8]
+    const middleTip = hand[12]
+    const ringTip = hand[16]
+    const pinkyTip = hand[20]
+    const palm = hand[5] // Index MCP as palm reference
+    const middleHand = hand[9] // Middle MCP
+
+    // Helper function to calculate distance between two points
+    const distance = (p1, p2) => {
+      return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2) + Math.pow(p2.z - p1.z, 2))
+    }
+
+    // Helper function to check if a finger is raised (tip above MCP)
+    const isFingerRaised = (tipPoint, mcpPoint) => {
+      return tipPoint.y < mcpPoint.y - 0.05
+    }
+
+    // Helper function to check if fingers are close together
+    const areClose = (p1, p2, threshold = 0.05) => {
+      return distance(p1, p2) < threshold
+    }
+
+    // Detect specific poses
+    const thumbRaised = isFingerRaised(thumbTip, hand[2])
+    const indexRaised = isFingerRaised(indexTip, hand[6])
+    const middleRaised = isFingerRaised(middleTip, hand[10])
+    const ringRaised = isFingerRaised(ringTip, hand[14])
+    const pinkyRaised = isFingerRaised(pinkyTip, hand[18])
+
+    // Count raised fingers
+    const raisedCount = [thumbRaised, indexRaised, middleRaised, ringRaised, pinkyRaised].filter(Boolean).length
+
+    // Check if hand is near face (under chin position) - more lenient detection
+    const handY = wrist.y
+    const handX = wrist.x
+    // Hand under chin - detect if hand is in lower portion of frame (near chin area)
+    const isHandUnderChin = handY > 0.55
+
+    // Detect thumbs up (only thumb raised, hand orientation)
+    if (thumbRaised && !indexRaised && !middleRaised && !ringRaised && !pinkyRaised && thumbTip.y < wrist.y - 0.1) {
+      return 'thumbs_up'
+    }
+
+    // Detect hands up (2+ fingers raised)
+    if (raisedCount >= 2) {
+      return 'hands_up'
+    }
+
+    // Detect hand under chin (lenient - any hand position in lower area)
+    if (isHandUnderChin && !thumbRaised && !indexRaised) {
+      return 'hand_under_chin'
+    }
+
+    // No specific pose detected - return null to keep current pose
+    return null
+  }
+
   // Draw frame with face detection and overlay
   const drawFrame = () => {
     if (!videoRef.current || !canvasRef.current || !faceLandmarkerRef.current) {
@@ -700,7 +821,96 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
             canvas.height
           )
 
-          // Draw vijay.png at cheek position if enabled
+          // Detect hand poses for Vijay filter
+          let detectedPose = null
+          let hasBlinked = false
+          
+          // Check for blink (eyes closed then open)
+          // Use eye top/bottom landmarks for better blink detection
+          const leftEyeTop = landmarks[159]
+          const leftEyeBottom = landmarks[145]
+          const rightEyeTop = landmarks[386]
+          const rightEyeBottom = landmarks[374]
+          
+          if (leftEyeTop && leftEyeBottom && rightEyeTop && rightEyeBottom) {
+            // Calculate eye opening distance (vertical distance between top and bottom)
+            const leftEyeOpen = Math.abs(leftEyeTop.y - leftEyeBottom.y)
+            const rightEyeOpen = Math.abs(rightEyeTop.y - rightEyeBottom.y)
+            const avgEyeOpen = (leftEyeOpen + rightEyeOpen) / 2
+            
+            // Eyes are closed when opening is very small
+            const eyesClosedNow = avgEyeOpen < 0.02
+            // Blink detected: transition from closed to open
+            hasBlinked = eyeStateRef.current && !eyesClosedNow
+            eyeStateRef.current = eyesClosedNow
+          }
+          
+          if (showVijayImage && handLandmarkerRef.current) {
+            try {
+              const handResults = handLandmarkerRef.current.detectForVideo(video, Date.now())
+              if (handResults.landmarks && handResults.landmarks.length > 0) {
+                detectedPose = detectHandPose(handResults.landmarks)
+              }
+            } catch (error) {
+              console.error('Hand detection error:', error)
+            }
+          }
+          
+          // Apply hand pose logic similar to monkey expression detection
+          // If we have an active pose and no new pose is detected, keep the active pose
+          if (hasActivePoseRef.current && detectedPose === null) {
+            // Only go back to default if user blinks
+            if (hasBlinked) {
+              hasActivePoseRef.current = false
+              currentVijayPoseRef.current = 'default'
+            }
+            // Otherwise ignore null detection - keep the active pose
+          } else if (detectedPose !== null) {
+            // Mark that we have an active pose
+            hasActivePoseRef.current = true
+          }
+          
+          // Debounce pose changes for stability
+          if (detectedPose === lastDetectedPoseRef.current) {
+            poseFrameCounterRef.current++
+          } else {
+            poseFrameCounterRef.current = 1
+            lastDetectedPoseRef.current = detectedPose
+          }
+          
+          // Determine required frames for stability (null = less sensitive to avoid flicker)
+          let requiredFrames = 3
+          if (detectedPose === null) {
+            requiredFrames = 5 // Less sensitive for null/no detection
+          }
+          
+          // Only update pose if stable for required frames
+          if (poseFrameCounterRef.current >= requiredFrames && detectedPose !== null) {
+            currentVijayPoseRef.current = detectedPose
+          }
+
+          // Draw vijay image based on detected pose if enabled
+          if (showVijayImage) {
+            const currentPose = currentVijayPoseRef.current
+            const poseImagePath = vijayPoseImagesRef.current[currentPose]
+            if (poseImagePath) {
+              // Check if image is already cached
+              if (!cachedVijayImagesRef.current[currentPose]) {
+                // Load the image if not cached
+                const img = new Image()
+                img.src = poseImagePath
+                img.onload = () => {
+                  cachedVijayImagesRef.current[currentPose] = img
+                  overlayImageRef.current = img
+                }
+              } else {
+                // Use cached image
+                overlayImageRef.current = cachedVijayImagesRef.current[currentPose]
+              }
+            }
+          }
+
+          // Draw vijay at cheek position if enabled
           if (showVijayImage && overlayImageRef.current) {
             const img = overlayImageRef.current
             
@@ -714,7 +924,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               // Calculate eye distance in normalized coordinates
               const eyeDistance = Math.sqrt(
                 Math.pow(rightEye.x - leftEye.x, 2) + 
-                Math.pow(rightEye.y - leftEye.y, 2)
+                Math.pow(rightEye.y - rightEye.y, 2)
               )
               
               // Reference eye distance at default zoom (around 0.15 in normalized coords)
@@ -2343,6 +2553,49 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                 }
               />
 
+              {/* Vijay Expression Instructions */}
+              {showVijayImage && (
+                <div style={{
+                  backgroundColor: '#c0c0c0',
+                  border: '1px solid',
+                  borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
+                  padding: '10px',
+                  marginTop: '-20px',
+                  marginLeft: '-150px',
+                  marginBottom: '10px',
+                  fontSize: '11px',
+                  fontFamily: 'Arial, sans-serif',
+                  color: '#000000',
+                  lineHeight: '1.4',
+                  width: '600px',
+                  position: 'relative',
+                  boxSizing: 'border-box'
+                }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#000080' }}>
+                    Changing Vijay Tips:
+                  </div>
+                  <div style={{ width: '100%' }}>• Try either putting your hands under your chin or thumbs up, or doing a peace sign pose</div>
+                  <div style={{ width: '100%' }}>• To go back to default "heart hands" vijay, just blink</div>
+                  <div style={{ width: '100%', textAlign: 'center', fontStyle: 'italic', marginTop: '5px' }}>
+                    Thalapathy is a busy man in politics now - sometimes gestures aren't detected, so keep trying! ☆
+                  </div>
+                  {/* Bow decoration */}
+                  <img 
+                    src={new URL('./assets/bow.png', import.meta.url).href} 
+                    alt="bow" 
+                    style={{
+                      position: 'absolute',
+                      right: '-20px',
+                      top: '-20px',
+                      width: '60px',
+                      height: '60px',
+                      transform: 'rotate(30deg)',
+                      opacity: 0.8
+                    }}
+                  />
+                </div>
+              )}
+
               <div className="button-group">
                 <button
                   onClick={startWebcam}
@@ -2501,7 +2754,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                         <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
                         <input
                           type="range"
-                          min="-150"
+                          min="-400"
                           max="150"
                           value={offsetY}
                           onChange={(e) => setOffsetY(Number(e.target.value))}
@@ -2563,9 +2816,9 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               <button
                 onClick={() => {
                   playClickSound()
-                  setOffsetX(12)
-                  setOffsetY(-90)
-                  setScale(0.9)
+                  setOffsetX(-39)
+                  setOffsetY(-338)
+                  setScale(1.4)
                   setRotation(0)
                   setBowOffsetX(0)
                   setBowOffsetY(-15)
