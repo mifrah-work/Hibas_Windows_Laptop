@@ -2231,7 +2231,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                 borderBottom: dragState?.window === 'vijayOverlay' ? '2px solid #ffffff' : 'none'
               }}
             >
-              <h1>Cam ⋆｡°✩</h1>
+              <h1>Vijay Cam ⋆｡°✩</h1>
               <button 
                 onClick={handleCloseVijayOverlay}
                 style={{
