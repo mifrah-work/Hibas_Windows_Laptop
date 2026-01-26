@@ -70,12 +70,13 @@ function LoginPage({ onLogin, onLogout }) {
 
     // Simulate login delay for realistic feel
     setTimeout(() => {
-      // Case-insensitive password check
-      if (password.toLowerCase() === 'michonne') {
+      // Case-insensitive password check - accepts anything starting with 'thala' or 'thale'
+      const lowerPassword = password.toLowerCase()
+      if (lowerPassword.startsWith('thala') || lowerPassword.startsWith('thale')) {
         setIsLoading(false)
         onLogin()
       } else {
-        setError('The password is incorrect. Frankly, quite disappointed in you edward')
+        setError('The password is incorrect. Come on you know this Hiba')
         setPassword('')
         setIsLoading(false)
       }
@@ -181,7 +182,7 @@ function LoginPage({ onLogin, onLogout }) {
             letterSpacing: '0.5px'
           }}
         >
-          STR4HM
+          Hiba
         </div>
 
         {/* Login Form */}
@@ -198,7 +199,7 @@ function LoginPage({ onLogin, onLogout }) {
           {/* Username Field (display only) */}
           <input
             type="text"
-            value="STR4HM"
+            value="HIBA.MARICAR"
             disabled
             style={{
               padding: '12px 16px',
@@ -335,7 +336,7 @@ function LoginPage({ onLogin, onLogout }) {
                 textAlign: 'center'
               }}
             >
-              You sure you don't know?
+              Vijay's Title
             </div>
           )}
         </div>
