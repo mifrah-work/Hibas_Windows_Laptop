@@ -135,7 +135,7 @@ function App() {
   // State for overlay positioning
   const [offsetX, setOffsetX] = useState(() => {
     const saved = localStorage.getItem('vijayOffsetX')
-    return saved !== null ? JSON.parse(saved) : 30
+    return saved !== null ? JSON.parse(saved) : -22
   })
   const [offsetY, setOffsetY] = useState(() => {
     const saved = localStorage.getItem('vijayOffsetY')
@@ -2840,7 +2840,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               <button
                 onClick={() => {
                   playClickSound()
-                  setOffsetX(30)
+                  setOffsetX(-22)
                   setOffsetY(-289)
                   setScale(1.6)
                   setRotation(0)
