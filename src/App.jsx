@@ -2754,7 +2754,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
 
                     <div className="control-group">
                       <label>
-                        Offset X: <span className="value">{offsetX}</span>
+                        Move Horizontally: <span className="value">{offsetX}</span>
                       </label>
                       <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
                         <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
@@ -2772,7 +2772,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
 
                     <div className="control-group">
                       <label>
-                        Offset Y: <span className="value">{offsetY}</span>
+                        Move Vertically: <span className="value">{offsetY}</span>
                       </label>
                       <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
                         <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
@@ -2809,7 +2809,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
 
                     <div className="control-group">
                       <label>
-                        Rotation: <span className="value">{rotation}°</span>
+                        Rotate: <span className="value">{rotation}°</span>
                       </label>
                       <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
                         <div style={{ position: 'absolute', width: '100%', height: '1px', backgroundColor: '#666', top: '50%' }}></div>
