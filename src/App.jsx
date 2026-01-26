@@ -121,8 +121,8 @@ function App() {
 
   // State for overlay positioning
   const [offsetX, setOffsetX] = useState(12)
-  const [offsetY, setOffsetY] = useState(-5)
-  const [scale, setScale] = useState(1)
+  const [offsetY, setOffsetY] = useState(-90)
+  const [scale, setScale] = useState(0.9)
   const [rotation, setRotation] = useState(0)
   
   // State for bow filter positioning
@@ -514,6 +514,15 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     Object.values(borderMap).forEach((borderSrc) => {
       const borderImg = new Image()
       borderImg.src = borderSrc
+    })
+  }, [])
+
+  // Preload all gallery photos
+  useEffect(() => {
+    const photoNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    photoNumbers.forEach((num) => {
+      const photoImg = new Image()
+      photoImg.src = new URL(`./assets/photos/${num}.png`, import.meta.url).href
     })
   }, [])
 
@@ -2532,8 +2541,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                 onClick={() => {
                   playClickSound()
                   setOffsetX(12)
-                  setOffsetY(-5)
-                  setScale(1)
+                  setOffsetY(-90)
+                  setScale(0.9)
                   setRotation(0)
                   setBowOffsetX(0)
                   setBowOffsetY(-15)
