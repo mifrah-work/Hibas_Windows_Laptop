@@ -960,8 +960,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               const proximityRatio = eyeDistance / referenceEyeDistance
               dynamicScale = scale * proximityRatio
               
-              // Clamp scale between 0.3 and 1.5 to prevent extreme values
-              dynamicScale = Math.max(0.3, Math.min(1.5, dynamicScale))
+              // Clamp scale between 0.3 and 3 to prevent extreme values but allow full slider range
+              dynamicScale = Math.max(0.3, Math.min(3, dynamicScale))
             }
             
             const scaledWidth = img.width * dynamicScale
