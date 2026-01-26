@@ -805,7 +805,31 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       if (results.faceLandmarks && results.faceLandmarks.length > 0) {
         allDetectedFaces = results.faceLandmarks
         detectedFaceCountRef.current = results.faceLandmarks.length
-        const landmarks = results.faceLandmarks[0]
+        
+        // Select the face closest to center to prevent flickering with multiple users
+        let closestFaceIndex = 0
+        if (results.faceLandmarks.length > 1) {
+          const centerX = 0.5
+          const centerY = 0.5
+          let minDistance = Infinity
+          
+          results.faceLandmarks.forEach((faceLandmarks, index) => {
+            // Use nose tip (landmark 1) as the face center
+            const noseTip = faceLandmarks[1]
+            if (noseTip) {
+              const distance = Math.sqrt(
+                Math.pow(noseTip.x - centerX, 2) + 
+                Math.pow(noseTip.y - centerY, 2)
+              )
+              if (distance < minDistance) {
+                minDistance = distance
+                closestFaceIndex = index
+              }
+            }
+          })
+        }
+        
+        const landmarks = results.faceLandmarks[closestFaceIndex]
         allFaceLandmarks = landmarks
 
         // Get right shoulder position for vijay
@@ -2574,7 +2598,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#000080' }}>
                     Changing Vijay Tips:
                   </div>
-                  <div style={{ width: '100%' }}>• Try either putting your hands under your chin or thumbs up, or doing a peace sign pose</div>
+                  <div style={{ width: '100%' }}>• Try either putting your hands clasped under your chin or doing a thumbs up, or doing a peace sign pose</div>
                   <div style={{ width: '100%' }}>• To go back to default "heart hands" vijay, just blink</div>
                   <div style={{ width: '100%', textAlign: 'center', fontStyle: 'italic', marginTop: '5px' }}>
                     Thalapathy is a busy man in politics now - sometimes gestures aren't detected, so keep trying! ☆
