@@ -550,26 +550,31 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     vijayImage.onerror = () => {
       console.error('Failed to load vijay.png')
     }
+  }, [])
 
-    // Preload all borders
-    const borderMap = {
-      bow: new URL('./assets/borders/bow.png', import.meta.url).href,
-      cat: new URL('./assets/borders/cat.png', import.meta.url).href,
-      gem_biscuit: new URL('./assets/borders/gem_biscuit.png', import.meta.url).href,
-      malligapoo: new URL('./assets/borders/malligapoo.png', import.meta.url).href,
-      miffy: new URL('./assets/borders/miffy.png', import.meta.url).href,
-      rajini: new URL('./assets/borders/rajini.png', import.meta.url).href,
-      sari: new URL('./assets/borders/sari.png', import.meta.url).href,
-      thali: new URL('./assets/borders/thali.png', import.meta.url).href
-    }
+  // Preload all borders once on mount
+  const borderMap = {
+    bow: new URL('./assets/borders/bow.png', import.meta.url).href,
+    cat: new URL('./assets/borders/cat.png', import.meta.url).href,
+    gem_biscuit: new URL('./assets/borders/gem_biscuit.png', import.meta.url).href,
+    malligapoo: new URL('./assets/borders/malligapoo.png', import.meta.url).href,
+    miffy: new URL('./assets/borders/miffy.png', import.meta.url).href,
+    rajini: new URL('./assets/borders/rajini.png', import.meta.url).href,
+    sari: new URL('./assets/borders/sari.png', import.meta.url).href,
+    thali: new URL('./assets/borders/thali.png', import.meta.url).href
+  }
+
+  useEffect(() => {
+    // Preload all borders once at startup
     Object.values(borderMap).forEach((borderSrc) => {
       const borderImg = new Image()
       borderImg.src = borderSrc
     })
+  }, [])
 
-    // Load border if selected
+  // Switch to selected border when currentBorder changes
+  useEffect(() => {
     if (currentBorder !== 'none') {
-      // Clear old border reference to prevent glitch during transition
       borderRef.current = null
       
       const borderImg = new Image()
@@ -581,7 +586,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         console.error(`Failed to load border image: ${currentBorder}`)
       }
     } else {
-      // Clear border reference when 'none' is selected
       borderRef.current = null
     }
   }, [currentBorder])
