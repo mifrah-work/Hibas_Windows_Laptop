@@ -186,6 +186,7 @@ function App() {
   const [isDraggingSlider, setIsDraggingSlider] = useState(false)
   const [currentSongIndex, setCurrentSongIndex] = useState(0)
   const [audioCurrentTime, setAudioCurrentTime] = useState(0)
+  const [audioDuration, setAudioDuration] = useState(0)
   const [replayCurrentSong, setReplayCurrentSong] = useState(false)
   const bgMusicRef = useRef(null)
   const imageModalRef = useRef(null)
@@ -484,15 +485,21 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     const handlePlay = () => setIsMusicPlaying(true)
     const handlePause = () => setIsMusicPlaying(false)
     const handleTimeUpdate = () => setAudioCurrentTime(audioElement.currentTime)
+    const handleLoadedMetadata = () => {
+      setAudioDuration(audioElement.duration || 0)
+      setAudioCurrentTime(audioElement.currentTime)
+    }
 
     audioElement.addEventListener('play', handlePlay)
     audioElement.addEventListener('pause', handlePause)
     audioElement.addEventListener('timeupdate', handleTimeUpdate)
+    audioElement.addEventListener('loadedmetadata', handleLoadedMetadata)
 
     return () => {
       audioElement.removeEventListener('play', handlePlay)
       audioElement.removeEventListener('pause', handlePause)
       audioElement.removeEventListener('timeupdate', handleTimeUpdate)
+      audioElement.removeEventListener('loadedmetadata', handleLoadedMetadata)
     }
   }, [])
 
@@ -3342,12 +3349,12 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
           }}>
             {(() => {
               const currentTime = isDraggingSlider 
-                ? (sliderPosition / 100) * (bgMusicRef.current?.duration || 150)
+                ? (sliderPosition / 100) * (audioDuration || 150)
                 : audioCurrentTime
               const minutes = Math.floor(currentTime / 60)
               const seconds = Math.floor(currentTime % 60)
-              const durationMinutes = Math.floor((bgMusicRef.current?.duration || 150) / 60)
-              const durationSeconds = Math.floor((bgMusicRef.current?.duration || 150) % 60)
+              const durationMinutes = Math.floor((audioDuration || 150) / 60)
+              const durationSeconds = Math.floor((audioDuration || 150) % 60)
               return (
                 <span>
                   {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')} / {String(durationMinutes).padStart(2, '0')}:{String(durationSeconds).padStart(2, '0')}
