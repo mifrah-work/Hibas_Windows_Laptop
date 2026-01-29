@@ -129,6 +129,7 @@ html {
 
 /* Canvas */
 .canvas-container {
+  position: relative;
   border: 2px solid;
   border-color: #808080 #dfdfdf #dfdfdf #808080;
   padding: 2px;

@@ -236,6 +236,13 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     return saved ? JSON.parse(saved) : true
   })
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [timerOption, setTimerOption] = useState(() => {
+    const saved = localStorage.getItem('captureTimerOption')
+    return saved ? JSON.parse(saved) : 'none'
+  })
+  const [showTimerDropdown, setShowTimerDropdown] = useState(false)
+  const [countdownValue, setCountdownValue] = useState(0)
+  const countdownIntervalRef = useRef(null)
 
   // Fade in animation
   const fadeProps = useSpring({ opacity: 1, from: { opacity: 0 } })
@@ -365,6 +372,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   useEffect(() => {
     localStorage.setItem('showVijayImage', JSON.stringify(showVijayImage))
   }, [showVijayImage])
+
+  // Persist timer option to localStorage
+  useEffect(() => {
+    localStorage.setItem('captureTimerOption', JSON.stringify(timerOption))
+  }, [timerOption])
 
   // Keep imageCountRef in sync with imageCount state
   useEffect(() => {
@@ -1393,6 +1405,39 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     })
   }
 
+  // Handle capture with timer countdown
+  const handleCaptureWithTimer = async () => {
+    if (timerOption === 'none') {
+      // No timer - capture immediately
+      await capturePhoto()
+      return
+    }
+
+    // Get the timer duration in seconds
+    const timerDurations = { '3s': 3, '5s': 5, '10s': 10 }
+    const duration = timerDurations[timerOption]
+    
+    if (!duration) return
+
+    // Start countdown
+    setCountdownValue(duration)
+    let remaining = duration
+
+    const countdownInterval = setInterval(() => {
+      remaining -= 1
+      setCountdownValue(remaining)
+
+      if (remaining <= 0) {
+        clearInterval(countdownInterval)
+        setCountdownValue(0)
+        // Capture after timer completes
+        capturePhoto()
+      }
+    }, 1000)
+
+    countdownIntervalRef.current = countdownInterval
+  }
+
   // Capture and save canvas as image to local memory
   const capturePhoto = async () => {
     if (!canvasRef.current) {
@@ -2294,6 +2339,24 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       backgroundColor: isWebcamActive ? 'transparent' : '#000000'
                     }}
                   />
+                  
+                  {/* Timer countdown overlay */}
+                  {countdownValue > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      fontSize: '120px',
+                      fontWeight: 'bold',
+                      color: 'white',
+                      textShadow: '0 0 20px rgba(0, 0, 0, 0.8)',
+                      zIndex: 100,
+                      userSelect: 'none'
+                    }}>
+                      {countdownValue}
+                    </div>
+                  )}
                 </div>
 
                 {/* Filter Options Panel */}
@@ -2669,24 +2732,37 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   ▶ Start
                 </button>
                 <button
-                  onClick={stopWebcam}
-                  disabled={!isWebcamActive}
+                  onClick={() => {
+                    playClickSound()
+                    if (countdownValue > 0) {
+                      // Cancel countdown if active
+                      if (countdownIntervalRef.current) {
+                        clearInterval(countdownIntervalRef.current)
+                        countdownIntervalRef.current = null
+                      }
+                      setCountdownValue(0)
+                    } else {
+                      // Stop webcam if no countdown
+                      stopWebcam()
+                    }
+                  }}
+                  disabled={!isWebcamActive && countdownValue === 0}
                   className="btn btn-secondary"
                   style={{
                     outline: 'none',
-                    color: !isWebcamActive ? '#888888' : '#000080',
+                    color: !isWebcamActive && countdownValue === 0 ? '#888888' : '#000080',
                     fontWeight: 'bold',
-                    opacity: !isWebcamActive ? 0.5 : 1,
-                    cursor: !isWebcamActive ? 'not-allowed' : 'pointer',
-                    backgroundColor: !isWebcamActive ? '#d0d0d0' : '#c0c0c0',
+                    opacity: !isWebcamActive && countdownValue === 0 ? 0.5 : 1,
+                    cursor: !isWebcamActive && countdownValue === 0 ? 'not-allowed' : 'pointer',
+                    backgroundColor: !isWebcamActive && countdownValue === 0 ? '#d0d0d0' : '#c0c0c0',
                     border: '2px solid',
-                    borderColor: !isWebcamActive ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf'
+                    borderColor: !isWebcamActive && countdownValue === 0 ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf'
                   }}
                 >
                   ■ Stop
                 </button>
                 <button
-                  onClick={capturePhoto}
+                  onClick={handleCaptureWithTimer}
                   disabled={!isWebcamActive}
                   className="btn btn-capture"
                   style={{
@@ -2702,6 +2778,80 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                 >
                   ● Capture
                 </button>
+                
+                {/* Timer dropdown button */}
+                <div style={{ position: 'relative', marginLeft: '4px' }}>
+                  <button
+                    onClick={() => {
+                      playClickSound()
+                      setShowTimerDropdown(!showTimerDropdown)
+                    }}
+                    disabled={!isWebcamActive}
+                    className="btn btn-timer"
+                    style={{
+                      outline: 'none',
+                      color: !isWebcamActive ? '#888888' : '#000080',
+                      fontWeight: 'bold',
+                      opacity: !isWebcamActive ? 0.5 : 1,
+                      cursor: !isWebcamActive ? 'not-allowed' : 'pointer',
+                      backgroundColor: !isWebcamActive ? '#d0d0d0' : '#c0c0c0',
+                      border: '2px solid',
+                      borderColor: !isWebcamActive ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf',
+                      minWidth: '60px'
+                    }}
+                  >
+                    ⏱ {timerOption === 'none' ? 'Timer' : timerOption}
+                  </button>
+                  
+                  {/* Dropdown menu */}
+                  {showTimerDropdown && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: '0',
+                      backgroundColor: '#c0c0c0',
+                      border: '2px solid',
+                      borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
+                      minWidth: '70px',
+                      marginTop: '2px',
+                      zIndex: 2000
+                    }}>
+                      {['none', '3s', '5s', '10s'].map((option) => (
+                        <div
+                          key={option}
+                          onClick={() => {
+                            playClickSound()
+                            setTimerOption(option)
+                            setShowTimerDropdown(false)
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            backgroundColor: timerOption === option ? '#000080' : '#c0c0c0',
+                            color: timerOption === option ? '#ffff00' : '#000080',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            userSelect: 'none',
+                            ':hover': {
+                              backgroundColor: '#000080',
+                              color: '#ffff00'
+                            }
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#000080'
+                            e.target.style.color = '#ffff00'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = timerOption === option ? '#000080' : '#c0c0c0'
+                            e.target.style.color = timerOption === option ? '#ffff00' : '#000080'
+                          }}
+                        >
+                          {option}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => {
                     playClickSound()
