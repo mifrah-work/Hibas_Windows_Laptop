@@ -227,6 +227,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     const saved = localStorage.getItem('use4Grid')
     return saved ? JSON.parse(saved) : false
   })
+  const [useGrain, setUseGrain] = useState(() => {
+    const saved = localStorage.getItem('useGrain')
+    return saved ? JSON.parse(saved) : true
+  })
   const [currentBorder, setCurrentBorder] = useState(() => {
     const saved = localStorage.getItem('currentBorder')
     return saved ? JSON.parse(saved) : 'none'
@@ -335,6 +339,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   useEffect(() => {
     localStorage.setItem('use4Grid', JSON.stringify(use4Grid))
   }, [use4Grid])
+
+  // Persist grain toggle to localStorage
+  useEffect(() => {
+    localStorage.setItem('useGrain', JSON.stringify(useGrain))
+  }, [useGrain])
 
   // Persist Vijay position to localStorage
   useEffect(() => {
@@ -1064,8 +1073,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     }
 
     // Add realistic film grain texture to all frames with frame-based animation
-    frameCounterRef.current++
-    addGrainTexture(canvas, ctx, 0.12, frameCounterRef.current)
+    if (useGrain) {
+      frameCounterRef.current++
+      addGrainTexture(canvas, ctx, 0.12, frameCounterRef.current)
+    }
 
     // Draw heart filter AFTER black & white and grain so it stays colored and on top
     // Apply to all detected faces
@@ -1338,7 +1349,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         cancelAnimationFrame(animationIdRef.current)
       }
     }
-  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, currentBorder, showVijayImage])
+  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, currentBorder, showVijayImage, useGrain])
 
   // Preload gallery images when gallery opens
   useEffect(() => {
@@ -2550,6 +2561,42 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       }}
                     >
                       4 Grid View
+                    </label>
+                  </div>
+
+                  {/* Grain Filter Checkbox */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '8px'
+                  }}>
+                    <input
+                      type="checkbox"
+                      id="grainToggle"
+                      checked={useGrain}
+                      onChange={(e) => {
+                        playClickSound()
+                        setUseGrain(e.target.checked)
+                      }}
+                      disabled={!isWebcamActive}
+                      style={{
+                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                        width: '14px',
+                        height: '14px',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}
+                    />
+                    <label
+                      htmlFor="grainToggle"
+                      style={{
+                        fontSize: '11px',
+                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                        userSelect: 'none',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}
+                    >
+                      Film Grain
                     </label>
                   </div>
 
