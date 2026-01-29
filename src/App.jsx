@@ -385,6 +385,17 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     }
   }, [showVijayImage])
 
+  // Set controls window position based on whether video window is open
+  useEffect(() => {
+    if (!showVideo) {
+      // Video window not open - match video window's default position
+      setControlsWindowPos({ x: 1180, y: 5 })
+    } else {
+      // Video window is open - use controls default position
+      setControlsWindowPos({ x: 855, y: 355 })
+    }
+  }, [showVideo])
+
   // Cheek and jawline landmark indices from MediaPipe Face Landmarker
   // Left cheek: index 234, Right cheek: index 454
   // Left jawline: index 206, Right shoulder: index 12
