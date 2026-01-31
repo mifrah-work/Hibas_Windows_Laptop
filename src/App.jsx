@@ -291,8 +291,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         console.error('Error loading trashed images:', error)
       }
     }
-    // Load window positions from localStorage
-    const savedWindowPositions = localStorage.getItem('windowPositions')
+    // Load window positions from sessionStorage (session-only, resets on page reload/tab close)
+    const savedWindowPositions = sessionStorage.getItem('windowPositions')
     if (savedWindowPositions) {
       try {
         const positions = JSON.parse(savedWindowPositions)
@@ -320,7 +320,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     localStorage.setItem('currentFilter', JSON.stringify(currentFilter))
   }, [currentFilter])
 
-  // Persist window positions to localStorage
+  // Persist window positions to sessionStorage (session-only, resets on page reload/tab close)
   useEffect(() => {
     const windowPositions = {
       vijayOverlayPos,
@@ -332,7 +332,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       galleryPos,
       captureNotificationPos,
     }
-    localStorage.setItem('windowPositions', JSON.stringify(windowPositions))
+    sessionStorage.setItem('windowPositions', JSON.stringify(windowPositions))
   }, [vijayOverlayPos, downloadsPos, musicPlayerPos, controlsWindowPos, trashPos, videoPos, galleryPos, captureNotificationPos])
 
   // Persist 4-grid toggle to localStorage
