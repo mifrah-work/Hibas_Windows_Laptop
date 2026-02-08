@@ -102,6 +102,8 @@ function App() {
   const overlayImageRef = useRef(null)
   const heartFilterRef = useRef(null)
   const bowFilterRef = useRef(null)
+  const nosePiercingRef = useRef(null)
+  const noseStudRef = useRef(null)
   const borderRef = useRef(null)
   const faceLandmarkerRef = useRef(null)
   const animationIdRef = useRef(null)
@@ -155,6 +157,18 @@ function App() {
   const [bowOffsetY, setBowOffsetY] = useState(10)
   const [bowScale, setBowScale] = useState(0.2)
   const [bowRotation, setBowRotation] = useState(20)
+  
+  // State for eye gem positioning
+  const [eyeGemOffsetX, setEyeGemOffsetX] = useState(5)
+  const [eyeGemOffsetY, setEyeGemOffsetY] = useState(2)
+  const [eyeGemScale, setEyeGemScale] = useState(0.015)
+  const [eyeGemRotation, setEyeGemRotation] = useState(0)
+  
+  // State for nose stud positioning (on nose tip right side)
+  const [noseStudOffsetX, setNoseStudOffsetX] = useState(-26)
+  const [noseStudOffsetY, setNoseStudOffsetY] = useState(-40)
+  const [noseStudScale, setNoseStudScale] = useState(0.05)
+  const [noseStudRotation, setNoseStudRotation] = useState(0)
   
   const [isWebcamActive, setIsWebcamActive] = useState(false)
   const [cameraError, setCameraError] = useState(null)
@@ -223,6 +237,14 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     const saved = localStorage.getItem('useBowFilter')
     return saved ? JSON.parse(saved) : false
   })
+  const [useEyeGem, setUseEyeGem] = useState(() => {
+    const saved = localStorage.getItem('useEyeGem')
+    return saved ? JSON.parse(saved) : false
+  })
+  const [useNoseStud, setUseNoseStud] = useState(() => {
+    const saved = localStorage.getItem('useNoseStud')
+    return saved ? JSON.parse(saved) : false
+  })
   const [use4Grid, setUse4Grid] = useState(() => {
     const saved = localStorage.getItem('use4Grid')
     return saved ? JSON.parse(saved) : false
@@ -238,6 +260,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   const [showVijayImage, setShowVijayImage] = useState(() => {
     const saved = localStorage.getItem('showVijayImage')
     return saved ? JSON.parse(saved) : true
+  })
+  const [disableHandTracking, setDisableHandTracking] = useState(() => {
+    const saved = localStorage.getItem('disableHandTracking')
+    return saved ? JSON.parse(saved) : false
   })
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [timerOption, setTimerOption] = useState(() => {
@@ -372,6 +398,16 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     localStorage.setItem('useBowFilter', JSON.stringify(useBowFilter))
   }, [useBowFilter])
 
+  // Persist eye gem toggle to localStorage
+  useEffect(() => {
+    localStorage.setItem('useEyeGem', JSON.stringify(useEyeGem))
+  }, [useEyeGem])
+
+  // Persist nose stud toggle to localStorage
+  useEffect(() => {
+    localStorage.setItem('useNoseStud', JSON.stringify(useNoseStud))
+  }, [useNoseStud])
+
   // Persist current border to localStorage
   useEffect(() => {
     localStorage.setItem('currentBorder', JSON.stringify(currentBorder))
@@ -381,6 +417,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   useEffect(() => {
     localStorage.setItem('showVijayImage', JSON.stringify(showVijayImage))
   }, [showVijayImage])
+
+  // Persist disable hand tracking toggle to localStorage
+  useEffect(() => {
+    localStorage.setItem('disableHandTracking', JSON.stringify(disableHandTracking))
+  }, [disableHandTracking])
 
   // Persist timer option to localStorage
   useEffect(() => {
@@ -589,6 +630,26 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       console.error('Failed to load bow filter image')
     }
 
+    // Load eye gem (nose piercing stud on left nostril)
+    const eyeGemImg = new Image()
+    eyeGemImg.src = new URL('./assets/stud.png', import.meta.url).href
+    eyeGemImg.onload = () => {
+      nosePiercingRef.current = eyeGemImg
+    }
+    eyeGemImg.onerror = () => {
+      console.error('Failed to load eye gem image')
+    }
+
+    // Load nose stud
+    const noseStudImg = new Image()
+    noseStudImg.src = new URL('./assets/nose_stud.png', import.meta.url).href
+    noseStudImg.onload = () => {
+      noseStudRef.current = noseStudImg
+    }
+    noseStudImg.onerror = () => {
+      console.error('Failed to load nose stud image')
+    }
+
     // Preload Vijay image
     const vijayImage = new Image()
     vijayImage.src = new URL('./assets/vijay.png', import.meta.url).href
@@ -754,6 +815,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
 
   // Detect hand pose from hand landmarks
   const detectHandPose = (handLandmarks) => {
+    if (disableHandTracking) {
+      return 'default'
+    }
+    
     if (!handLandmarks || handLandmarks.length === 0) {
       return 'default'
     }
@@ -1204,6 +1269,123 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       }
     }
 
+    // Draw eye gem on left side of nose if enabled
+    if (useEyeGem && nosePiercingRef.current && allDetectedFaces.length > 0) {
+      try {
+        allDetectedFaces.forEach((faceLandmarks, faceIndex) => {
+          const leftEye = faceLandmarks[33]  // Left eye landmark
+          const rightEye = faceLandmarks[263] // Right eye landmark
+          const leftNostril = faceLandmarks[31] // Left nostril landmark
+          
+          if (!leftNostril) {
+            return
+          }
+          
+          const { pixelX: nostrilX, pixelY: nostrilY } = normalizedToCanvasCoordinates(
+            leftNostril.x,
+            leftNostril.y,
+            canvas.width,
+            canvas.height
+          )
+
+          // Calculate dynamic scale based on face size (proximity to camera)
+          let dynamicScale = 0.015
+          if (leftEye && rightEye) {
+            const eyeDistance = Math.sqrt(
+              Math.pow(rightEye.x - leftEye.x, 2) + 
+              Math.pow(rightEye.y - leftEye.y, 2)
+            )
+            const referenceEyeDistance = 0.15
+            const proximityRatio = eyeDistance / referenceEyeDistance
+            dynamicScale = eyeGemScale * proximityRatio
+            dynamicScale = Math.max(0.008, Math.min(0.15, dynamicScale))
+          }
+
+          const studImg = nosePiercingRef.current
+          const studWidth = studImg.width * dynamicScale
+          const studHeight = studImg.height * dynamicScale
+
+          // Position on left side of nose near left nostril
+          const studX = nostrilX + eyeGemOffsetX - studWidth / 2
+          const studY = nostrilY + eyeGemOffsetY - studHeight / 2
+
+          ctx.save()
+          ctx.globalAlpha = 1
+          ctx.translate(studX + studWidth / 2, studY + studHeight / 2)
+          ctx.rotate((eyeGemRotation * Math.PI) / 180)
+          ctx.drawImage(
+            studImg,
+            -studWidth / 2,
+            -studHeight / 2,
+            studWidth,
+            studHeight
+          )
+          ctx.restore()
+        })
+      } catch (error) {
+        console.error('Eye gem rendering error:', error)
+      }
+    }
+
+    // Draw nose stud on right side of nose with green landmark dot if enabled
+    if (useNoseStud && noseStudRef.current && allDetectedFaces.length > 0) {
+      try {
+        allDetectedFaces.forEach((faceLandmarks, faceIndex) => {
+          const leftEye = faceLandmarks[33]  // Left eye landmark
+          const rightEye = faceLandmarks[263] // Right eye landmark
+          const noseLeft = faceLandmarks[2] // Left side of nose
+          
+          if (!noseLeft) {
+            return
+          }
+          
+          const { pixelX: nostrilX, pixelY: nostrilY } = normalizedToCanvasCoordinates(
+            noseLeft.x,
+            noseLeft.y,
+            canvas.width,
+            canvas.height
+          )
+
+          // Calculate dynamic scale based on face size (proximity to camera)
+          let dynamicScale = 0.07
+          if (leftEye && rightEye) {
+            const eyeDistance = Math.sqrt(
+              Math.pow(rightEye.x - leftEye.x, 2) + 
+              Math.pow(rightEye.y - leftEye.y, 2)
+            )
+            const referenceEyeDistance = 0.15
+            const proximityRatio = eyeDistance / referenceEyeDistance
+            dynamicScale = noseStudScale * proximityRatio
+            dynamicScale = Math.max(0.02, Math.min(0.25, dynamicScale))
+          }
+
+          const studImg = noseStudRef.current
+          const studWidth = studImg.width * dynamicScale
+          const studHeight = studImg.height * dynamicScale
+
+          // Position on right side of nose
+          const studX = nostrilX + noseStudOffsetX - studWidth / 2
+          const studY = nostrilY + noseStudOffsetY - studHeight / 2
+
+          // Draw the nose stud image
+          ctx.save()
+          ctx.globalAlpha = 1
+          ctx.translate(studX + studWidth / 2, studY + studHeight / 2)
+          ctx.rotate((noseStudRotation * Math.PI) / 180)
+          ctx.drawImage(
+            studImg,
+            -studWidth / 2,
+            -studHeight / 2,
+            studWidth,
+            studHeight
+          )
+          ctx.restore()
+        })
+      } catch (error) {
+        console.error('Nose stud rendering error:', error)
+      }
+    }
+
     // Draw border overlay if one is selected
     if (currentBorder !== 'none' && borderRef.current) {
       // Skip drawing non-thali borders here if in 4-grid mode (they'll be drawn on full frame or specific grids after tiling)
@@ -1349,7 +1531,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         cancelAnimationFrame(animationIdRef.current)
       }
     }
-  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, currentBorder, showVijayImage, useGrain])
+  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, eyeGemOffsetX, eyeGemOffsetY, eyeGemScale, eyeGemRotation, noseStudOffsetX, noseStudOffsetY, noseStudScale, noseStudRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, useEyeGem, useNoseStud, currentBorder, showVijayImage, useGrain, disableHandTracking])
 
   // Preload gallery images when gallery opens
   useEffect(() => {
@@ -2528,6 +2710,80 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     </label>
                   </div>
 
+                  {/* Nose Piercing Toggle Checkbox */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '8px',
+                    paddingLeft: '0px'
+                  }}>
+                    <input
+                      type="checkbox"
+                      id="eyeGemToggle"
+                      checked={useEyeGem}
+                      onChange={(e) => {
+                        playClickSound()
+                        setUseEyeGem(e.target.checked)
+                      }}
+                      disabled={!isWebcamActive}
+                      style={{
+                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                        width: '14px',
+                        height: '14px',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}
+                    />
+                    <label
+                      htmlFor="eyeGemToggle"
+                      style={{
+                        fontSize: '11px',
+                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                        userSelect: 'none',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}
+                    >
+                       Eye Gem ✧
+                    </label>
+                  </div>
+
+                  {/* Nose Stud Toggle Checkbox */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '8px',
+                    paddingLeft: '0px'
+                  }}>
+                    <input
+                      type="checkbox"
+                      id="noseStudToggle"
+                      checked={useNoseStud}
+                      onChange={(e) => {
+                        playClickSound()
+                        setUseNoseStud(e.target.checked)
+                      }}
+                      disabled={!isWebcamActive}
+                      style={{
+                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                        width: '14px',
+                        height: '14px',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}
+                    />
+                    <label
+                      htmlFor="noseStudToggle"
+                      style={{
+                        fontSize: '11px',
+                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                        userSelect: 'none',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}
+                    >
+                       Nose Stud
+                    </label>
+                  </div>
+
                   {/* 4 Grid Toggle Checkbox */}
                   <div style={{
                     display: 'flex',
@@ -2724,7 +2980,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   border: '1px solid',
                   borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
                   padding: '10px',
-                  marginTop: '-20px',
+                  marginTop: '-130px',
                   marginLeft: '-150px',
                   marginBottom: '10px',
                   fontSize: '11px',
@@ -2742,6 +2998,47 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   <div style={{ width: '100%' }}>• Blink to switch back to Vijay’s "Heart Hands" pose</div>
                   <div style={{ width: '100%', textAlign: 'center', fontStyle: 'italic', marginTop: '5px' }}>
                     Thalapathy is a busy man in politics now - sometimes he doesn't detect your gestures, so keep trying! ☆
+                  </div>
+
+                  {/* Disable hand tracking checkbox */}
+                  <div style={{
+                    marginTop: '15px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    padding: '6px 8px',
+                    backgroundColor: '#c0c0c0',
+                    border: '2px solid',
+                    borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    width: 'fit-content'
+                  }}>
+                    <input
+                      type="checkbox"
+                      id="disableHandTrackingToggle"
+                      checked={disableHandTracking}
+                      onChange={(e) => {
+                        playClickSound()
+                        setDisableHandTracking(e.target.checked)
+                      }}
+                      style={{
+                        cursor: 'pointer',
+                        width: '13px',
+                        height: '13px'
+                      }}
+                    />
+                    <label
+                      htmlFor="disableHandTrackingToggle"
+                      style={{
+                        fontSize: '10px',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      Don't track hand movements
+                    </label>
                   </div>
                   {/* Bow decoration */}
                   <img 
