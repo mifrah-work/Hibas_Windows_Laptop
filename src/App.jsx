@@ -3538,25 +3538,27 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
           >
             <h1 style={{ margin: '2px 4px', fontSize: '14px', fontWeight: 'bold' }}>Downloads ⋆｡°✩</h1>
             <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
-              <button 
-                onClick={() => {
-                  playClickSound()
-                  setShowSaveAllModal(true)
-                }}
-                style={{
-                  padding: '2px 6px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  outline: 'none',
-                  backgroundColor: '#c0c0c0',
-                  border: '2px solid',
-                  borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
-                  fontSize: '11px',
-                  color: '#000080'
-                }}
-              >
-                Save All
-              </button>
+              {capturedImages.length > 1 && (
+                <button 
+                  onClick={() => {
+                    playClickSound()
+                    setShowSaveAllModal(true)
+                  }}
+                  style={{
+                    padding: '2px 6px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    outline: 'none',
+                    backgroundColor: '#c0c0c0',
+                    border: '2px solid',
+                    borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
+                    fontSize: '11px',
+                    color: '#000080'
+                  }}
+                >
+                  💾 Save All
+                </button>
+              )}
               <button 
                 onClick={handleCloseDownloads}
                 style={{
@@ -5308,11 +5310,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   setShowSaveOptions(false)
                 }}
                 style={{
-                  background: 'linear-gradient(to bottom, #dfdfdf, #808080)',
-                  border: '1px solid',
-                  borderColor: '#ffffff #000000 #000000 #ffffff',
+                  backgroundColor: '#d85c5c',
+                  border: 'none',
                   width: '16px',
-                  height: '14px',
+                  height: '16px',
                   padding: '0',
                   cursor: 'pointer',
                   fontSize: '10px',
@@ -5320,10 +5321,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  outline: 'none'
+                  outline: 'none',
+                  color: '#ffffff'
                 }}
               >
-                ×
+                ✕
               </button>
             </div>
 
