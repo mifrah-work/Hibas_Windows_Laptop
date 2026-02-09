@@ -4114,9 +4114,15 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               </div>
             ) : (
               (() => {
-                const itemsPerPage = 5
-                const startIdx = trashPage * itemsPerPage
-                const endIdx = startIdx + itemsPerPage
+                // Calculate items that fit horizontally (each item ~80px with gap and padding)
+                const trashWindowWidth = 600
+                const itemWidth = 80 // 70px minWidth + 10px gap
+                const containerPadding = 8 // 4px on each side
+                const availableWidth = trashWindowWidth - containerPadding
+                const itemsPerRow = Math.max(1, Math.floor(availableWidth / itemWidth))
+                
+                const startIdx = trashPage * itemsPerRow
+                const endIdx = startIdx + itemsPerRow
                 const pageImages = trashedImages.slice(startIdx, endIdx)
                 
                 return pageImages.map((image) => (
@@ -4225,21 +4231,21 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               fontSize: '12px',
               whiteSpace: 'nowrap'
             }}>
-              {trashedImages.length === 0 ? 'No images' : `Page ${trashPage + 1}/${Math.ceil(trashedImages.length / 5)}`}
+              {trashedImages.length === 0 ? 'No images' : `Page ${trashPage + 1}/${Math.ceil(trashedImages.length / Math.max(1, Math.floor((600 - 8) / 80)))}`}
             </span>
             <button
               onClick={() => {
                 playClickSound()
                 setTrashPage(trashPage + 1)
               }}
-              disabled={(trashPage + 1) * 5 >= trashedImages.length}
+              disabled={(trashPage + 1) * Math.max(1, Math.floor((600 - 8) / 80)) >= trashedImages.length}
               style={{
                 padding: '2px 6px',
-                cursor: (trashPage + 1) * 5 >= trashedImages.length ? 'not-allowed' : 'pointer',
+                cursor: (trashPage + 1) * Math.max(1, Math.floor((600 - 8) / 80)) >= trashedImages.length ? 'not-allowed' : 'pointer',
                 fontWeight: 'bold',
-                backgroundColor: (trashPage + 1) * 5 >= trashedImages.length ? '#a0a0a0' : '#c0c0c0',
+                backgroundColor: (trashPage + 1) * Math.max(1, Math.floor((600 - 8) / 80)) >= trashedImages.length ? '#a0a0a0' : '#c0c0c0',
                 border: '2px solid',
-                borderColor: (trashPage + 1) * 5 >= trashedImages.length ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf',
+                borderColor: (trashPage + 1) * Math.max(1, Math.floor((600 - 8) / 80)) >= trashedImages.length ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf',
                 fontSize: '12px',
                 outline: 'none',
                 WebkitAppearance: 'none',
@@ -4719,7 +4725,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       borderColor: '#1b9fff #0a4a99 #0a4a99 #1b9fff',
                       textShadow: '1px 1px 1px rgba(0,0,0,0.5)',
                       minWidth: '100px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      outline: 'none',
+                      WebkitAppearance: 'none',
+                      boxShadow: 'none'
                     }}
                   >
                     Save
@@ -4741,7 +4750,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       borderColor: '#ff4444 #800000 #800000 #ff4444',
                       textShadow: '1px 1px 1px rgba(0,0,0,0.5)',
                       minWidth: '100px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      outline: 'none',
+                      WebkitAppearance: 'none',
+                      boxShadow: 'none'
                     }}
                   >
                     Delete
@@ -4924,8 +4936,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     style={{
                       maxWidth: '100%',
                       maxHeight: '100%',
-                      objectFit: 'contain',
-                      opacity: 0.8
+                      objectFit: 'contain'
                     }}
                   />
 
@@ -4987,7 +4998,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       borderColor: '#1b9fff #0a4a99 #0a4a99 #1b9fff',
                       textShadow: '1px 1px 1px rgba(0,0,0,0.5)',
                       minWidth: '100px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      outline: 'none',
+                      WebkitAppearance: 'none',
+                      boxShadow: 'none'
                     }}
                   >
                     Restore
@@ -5009,7 +5023,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       borderColor: '#ff4444 #800000 #800000 #ff4444',
                       textShadow: '1px 1px 1px rgba(0,0,0,0.5)',
                       minWidth: '100px',
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      outline: 'none',
+                      WebkitAppearance: 'none',
+                      boxShadow: 'none'
                     }}
                   >
                     Delete Forever
