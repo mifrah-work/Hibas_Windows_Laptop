@@ -327,23 +327,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         console.error('Error loading trashed images:', error)
       }
     }
-    // Load window positions from sessionStorage (session-only, resets on page reload/tab close)
-    const savedWindowPositions = sessionStorage.getItem('windowPositions')
-    if (savedWindowPositions) {
-      try {
-        const positions = JSON.parse(savedWindowPositions)
-        if (positions.vijayOverlayPos) setVijayOverlayPos(positions.vijayOverlayPos)
-        if (positions.downloadsPos) setDownloadsPos(positions.downloadsPos)
-        if (positions.musicPlayerPos) setMusicPlayerPos(positions.musicPlayerPos)
-        if (positions.controlsWindowPos) setControlsWindowPos(positions.controlsWindowPos)
-        if (positions.trashPos) setTrashPos(positions.trashPos)
-        if (positions.videoPos) setVideoPos(positions.videoPos)
-        if (positions.galleryPos) setGalleryPos(positions.galleryPos)
-        if (positions.captureNotificationPos) setCaptureNotificationPos(positions.captureNotificationPos)
-      } catch (error) {
-        console.error('Error loading window positions:', error)
-      }
-    }
   }, [])
 
   // Persist login state to localStorage
@@ -355,21 +338,6 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   useEffect(() => {
     localStorage.setItem('currentFilter', JSON.stringify(currentFilter))
   }, [currentFilter])
-
-  // Persist window positions to sessionStorage (session-only, resets on page reload/tab close)
-  useEffect(() => {
-    const windowPositions = {
-      vijayOverlayPos,
-      downloadsPos,
-      musicPlayerPos,
-      controlsWindowPos,
-      trashPos,
-      videoPos,
-      galleryPos,
-      captureNotificationPos,
-    }
-    sessionStorage.setItem('windowPositions', JSON.stringify(windowPositions))
-  }, [vijayOverlayPos, downloadsPos, musicPlayerPos, controlsWindowPos, trashPos, videoPos, galleryPos, captureNotificationPos])
 
   // Persist 4-grid toggle to localStorage
   useEffect(() => {
