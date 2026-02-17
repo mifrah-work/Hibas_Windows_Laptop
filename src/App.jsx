@@ -876,6 +876,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       return
     }
 
+    // Only draw bow once (on first strip, not second) in stretch mode
+    if (isSecondStrip) {
+      return
+    }
+
     try {
       const canvas = canvasRef.current
       const ctx = canvas.getContext('2d')
