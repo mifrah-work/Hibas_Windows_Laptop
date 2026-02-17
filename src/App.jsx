@@ -139,15 +139,15 @@ function App() {
   // State for overlay positioning
   const [offsetX, setOffsetX] = useState(() => {
     const saved = localStorage.getItem('vijayOffsetX')
-    return saved !== null ? JSON.parse(saved) : -22
+    return saved !== null ? JSON.parse(saved) : -39
   })
   const [offsetY, setOffsetY] = useState(() => {
     const saved = localStorage.getItem('vijayOffsetY')
-    return saved !== null ? JSON.parse(saved) : -289
+    return saved !== null ? JSON.parse(saved) : -279
   })
   const [scale, setScale] = useState(() => {
     const saved = localStorage.getItem('vijayScale')
-    return saved !== null ? JSON.parse(saved) : 1.6
+    return saved !== null ? JSON.parse(saved) : 1.9
   })
   const [rotation, setRotation] = useState(() => {
     const saved = localStorage.getItem('vijayRotation')
@@ -157,7 +157,7 @@ function App() {
   // State for bow filter positioning
   const [bowOffsetX, setBowOffsetX] = useState(0)
   const [bowOffsetY, setBowOffsetY] = useState(10)
-  const [bowScale, setBowScale] = useState(0.2)
+  const [bowScale, setBowScale] = useState(0.12)
   const [bowRotation, setBowRotation] = useState(20)
   
   // State for eye gem positioning
@@ -253,6 +253,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   })
   const [use4Grid, setUse4Grid] = useState(() => {
     const saved = localStorage.getItem('use4Grid')
+    return saved ? JSON.parse(saved) : false
+  })
+  const [useStretch, setUseStretch] = useState(() => {
+    const saved = localStorage.getItem('useStretch')
     return saved ? JSON.parse(saved) : false
   })
   const [useGrain, setUseGrain] = useState(() => {
@@ -371,6 +375,11 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
   useEffect(() => {
     localStorage.setItem('use4Grid', JSON.stringify(use4Grid))
   }, [use4Grid])
+
+  // Persist stretch toggle to localStorage
+  useEffect(() => {
+    localStorage.setItem('useStretch', JSON.stringify(useStretch))
+  }, [useStretch])
 
   // Persist grain toggle to localStorage
   useEffect(() => {
@@ -892,6 +901,70 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     return null
   }
 
+  // Helper function to draw bow filter with stretch scaling
+  const drawBowFilter = (scaleRatio, stretchScaleY, stripOffsetX, stripOffsetY, isSecondStrip, allDetectedFaces) => {
+    if (!useBowFilter || !bowFilterRef.current || !allDetectedFaces || allDetectedFaces.length === 0) {
+      return
+    }
+
+    try {
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext('2d')
+      
+      allDetectedFaces.forEach((faceLandmarks) => {
+        const topHead = faceLandmarks[10]
+        const leftEye = faceLandmarks[33]
+        const rightEye = faceLandmarks[263]
+        const rightSide = faceLandmarks[156]
+        
+        if (!topHead || !rightSide) return
+        
+        const { pixelX: headX, pixelY: headY } = normalizedToCanvasCoordinates(
+          topHead.x,
+          topHead.y,
+          canvas.width,
+          canvas.height
+        )
+        
+        const { pixelX: rightX, pixelY: rightY } = normalizedToCanvasCoordinates(
+          rightSide.x,
+          rightSide.y,
+          canvas.width,
+          canvas.height
+        )
+
+        let dynamicScale = bowScale * scaleRatio
+        if (leftEye && rightEye) {
+          const eyeDistance = Math.sqrt(
+            Math.pow(rightEye.x - leftEye.x, 2) + 
+            Math.pow(rightEye.y - leftEye.y, 2)
+          )
+          const referenceEyeDistance = 0.15
+          const proximityRatio = eyeDistance / referenceEyeDistance
+          dynamicScale = (bowScale * proximityRatio) * scaleRatio
+          dynamicScale = Math.max(0.08, Math.min(0.25, dynamicScale))
+        }
+
+        const bowImg = bowFilterRef.current
+        const bowWidth = bowImg.width * dynamicScale
+        const bowHeight = bowImg.height * dynamicScale * stretchScaleY
+        
+        // Apply strip positioning and stretch offset
+        const bowX = (rightX * scaleRatio) + stripOffsetX + bowOffsetX - bowWidth / 2
+        const bowY = stripOffsetY + (headY * stretchScaleY) + bowOffsetY - bowHeight / 2
+
+        ctx.save()
+        ctx.globalAlpha = 1
+        ctx.translate(bowX + bowWidth / 2, bowY + bowHeight / 2)
+        ctx.rotate((bowRotation * Math.PI) / 180)
+        ctx.drawImage(bowImg, -bowWidth / 2, -bowHeight / 2, bowWidth, bowHeight)
+        ctx.restore()
+      })
+    } catch (error) {
+      console.error('Stretch mode bow rendering error:', error)
+    }
+  }
+
   // Draw frame with face detection and overlay
   const drawFrame = () => {
     if (!videoRef.current || !canvasRef.current || !faceLandmarkerRef.current) {
@@ -1210,7 +1283,8 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     }
 
     // Draw bow filter on right side of head if enabled
-    if (useBowFilter && bowFilterRef.current && allDetectedFaces.length > 0) {
+    // Skip in stretch mode - will be drawn once after stretch pass
+    if (useBowFilter && bowFilterRef.current && allDetectedFaces.length > 0 && !useStretch) {
       try {
         allDetectedFaces.forEach((faceLandmarks, faceIndex) => {
           const topHead = faceLandmarks[10] // Top of head
@@ -1393,52 +1467,58 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     }
 
     // Draw border overlay if one is selected
+    // In stretch mode, defer certain borders to be drawn once after stretch
     if (currentBorder !== 'none' && borderRef.current) {
-      // Skip drawing non-thali borders here if in 4-grid mode (they'll be drawn on full frame or specific grids after tiling)
-      const shouldSkipForGridMode = use4Grid && currentBorder !== 'thali' && currentBorder !== 'chai' && currentBorder !== 'cat'
+      const deferredBordersForStretch = ['gem_biscuit', 'miffy', 'four_monkeys', 'bow', 'cat', 'rajini', 'thali', 'chai', 'malligapoo', 'sari']
+      const shouldDeferForStretch = useStretch && deferredBordersForStretch.includes(currentBorder)
       
-      if (!shouldSkipForGridMode) {
-        const borderImg = borderRef.current
-        let borderX = 0
-        let borderY = 0
-        let borderWidth = canvas.width
-        let borderHeight = canvas.height
-        let borderOpacity = 1
+      if (!shouldDeferForStretch) {
+        // Skip drawing non-thali borders here if in 4-grid mode (they'll be drawn on full frame or specific grids after tiling)
+        const shouldSkipForGridMode = use4Grid && currentBorder !== 'thali' && currentBorder !== 'chai' && currentBorder !== 'cat'
         
-        // Scale miffy to 1.2x in normal view (not 4-grid)
-        if (!use4Grid && currentBorder === 'miffy') {
-          borderWidth = canvas.width * 1.01
-          borderHeight = canvas.height * 1.01
-          borderX = (canvas.width - borderWidth) / 2
-          borderY = (canvas.height - borderHeight) / 2
+        if (!shouldSkipForGridMode) {
+          const borderImg = borderRef.current
+          let borderX = 0
+          let borderY = 0
+          let borderWidth = canvas.width
+          let borderHeight = canvas.height
+          let borderOpacity = 1
+          
+          // Scale miffy to 1.2x in normal view (not 4-grid)
+          if (!use4Grid && currentBorder === 'miffy') {
+            borderWidth = canvas.width * 1.01
+            borderHeight = canvas.height * 1.01
+            borderX = (canvas.width - borderWidth) / 2
+            borderY = (canvas.height - borderHeight) / 2
+          }
+          
+          // Special handling for thali - position at bottom of webcam
+          if (currentBorder === 'thali') {
+            // Position thali at the bottom center of webcam
+            borderWidth = canvas.width * 0.8
+            borderHeight = canvas.height * 0.35
+            borderX = (canvas.width - borderWidth) / 2 // Center horizontally
+            borderY = canvas.height - borderHeight + 80 // Position even lower at bottom of canvas
+          }
+          
+          // Special handling for chai - position at bottom of webcam
+          if (currentBorder === 'chai') {
+            // Position chai at the bottom center of webcam
+            borderWidth = canvas.width * 0.3 // Can be adjusted separately
+            borderHeight = canvas.height * 0.4
+            borderX = (canvas.width - borderWidth) / 2 // Center horizontally
+            borderY = canvas.height - borderHeight + 70 // Position even lower at bottom of canvas
+          }
+          
+          ctx.globalAlpha = borderOpacity
+          ctx.drawImage(borderImg, borderX, borderY, borderWidth, borderHeight)
+          ctx.globalAlpha = 1.0
         }
-        
-        // Special handling for thali - position at bottom of webcam
-        if (currentBorder === 'thali') {
-          // Position thali at the bottom center of webcam
-          borderWidth = canvas.width * 0.8
-          borderHeight = canvas.height * 0.35
-          borderX = (canvas.width - borderWidth) / 2 // Center horizontally
-          borderY = canvas.height - borderHeight + 80 // Position even lower at bottom of canvas
-        }
-        
-        // Special handling for chai - position at bottom of webcam
-        if (currentBorder === 'chai') {
-          // Position chai at the bottom center of webcam
-          borderWidth = canvas.width * 0.3 // Can be adjusted separately
-          borderHeight = canvas.height * 0.4
-          borderX = (canvas.width - borderWidth) / 2 // Center horizontally
-          borderY = canvas.height - borderHeight + 70 // Position even lower at bottom of canvas
-        }
-        
-        ctx.globalAlpha = borderOpacity
-        ctx.drawImage(borderImg, borderX, borderY, borderWidth, borderHeight)
-        ctx.globalAlpha = 1.0
       }
     }
 
     // If 4-grid mode: create a temporary canvas with the single frame, then tile it 4 times
-    if (use4Grid) {
+    if (use4Grid && !useStretch) {
       const tempCanvas = document.createElement('canvas')
       tempCanvas.width = canvas.width
       tempCanvas.height = canvas.height
@@ -1523,6 +1603,101 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       }
     }
 
+    // If Double/Stretch mode: create vertically stretched dual strips
+    if (useStretch && !use4Grid) {
+      const tempCanvas = document.createElement('canvas')
+      tempCanvas.width = canvas.width
+      tempCanvas.height = canvas.height
+      const tempCtx = tempCanvas.getContext('2d')
+      
+      // Copy current canvas to temp canvas
+      tempCtx.drawImage(canvas, 0, 0)
+      
+      // Clear main canvas
+      ctx.fillStyle = '#000000'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      
+      // Define stretch parameters
+      const halfWidth = canvas.width / 2
+      const stretchScaleY = 1.4
+      const stretchedHeight = canvas.height * stretchScaleY
+      const offsetY = (canvas.height - stretchedHeight) / 2
+      
+      // Left strip
+      ctx.drawImage(
+        tempCanvas,
+        0, 0, canvas.width, canvas.height,
+        0, offsetY, halfWidth, stretchedHeight
+      )
+      
+      // Right strip
+      ctx.drawImage(
+        tempCanvas,
+        0, 0, canvas.width, canvas.height,
+        halfWidth, offsetY, halfWidth, stretchedHeight
+      )
+
+      // Draw deferred overlays that should appear once after stretch
+      // Draw bow filter on both strips with stretch scaling applied
+      drawBowFilter(0.5, stretchScaleY, 0, offsetY, false, allDetectedFaces)
+      drawBowFilter(0.5, stretchScaleY, halfWidth, offsetY, false, allDetectedFaces)
+
+      // Draw specific borders after stretch if selected
+      if (currentBorder !== 'none' && borderRef.current) {
+        const deferredBorders = ['gem_biscuit', 'miffy', 'four_monkeys', 'malligapoo', 'sari']
+        const noStretchBorders = ['bow', 'cat', 'rajini', 'thali', 'chai']
+        
+        // Draw stretched deferred borders once (full width)
+        if (deferredBorders.includes(currentBorder)) {
+          const borderImg = borderRef.current
+          let borderWidth = canvas.width
+          let borderHeight = canvas.height
+          let borderX = 0
+          let borderY = 0
+          
+          ctx.globalAlpha = 1
+          ctx.drawImage(borderImg, borderX, borderY, borderWidth, borderHeight)
+          ctx.globalAlpha = 1.0
+        }
+        
+        // Draw no-stretch borders twice (once on each strip) without stretch
+        if (noStretchBorders.includes(currentBorder)) {
+          const borderImg = borderRef.current
+          let borderWidth = halfWidth
+          let borderHeight = canvas.height
+          let borderX = 0
+          let borderY = 0
+          
+          // Special handling for thali
+          if (currentBorder === 'thali') {
+            borderWidth = halfWidth * 0.8 * 0.7
+            borderHeight = canvas.height * 0.35 * 0.7
+            borderY = canvas.height - borderHeight + 60
+          }
+          
+          // Special handling for chai
+          if (currentBorder === 'chai') {
+            borderWidth = halfWidth * 0.3 * 0.8
+            borderHeight = canvas.height * 0.4 * 0.8
+            borderY = canvas.height - borderHeight + 50
+          }
+          
+          // Draw on left strip
+          borderX = (halfWidth - borderWidth) / 2
+          ctx.globalAlpha = 1
+          ctx.drawImage(borderImg, borderX, borderY, borderWidth, borderHeight)
+          
+          // Draw on right strip
+          borderX = halfWidth + (halfWidth - borderWidth) / 2
+          ctx.drawImage(borderImg, borderX, borderY, borderWidth, borderHeight)
+          ctx.globalAlpha = 1.0
+        }
+      }
+
+      // Note: Hello Kitty would be drawn as two separate halves with offset, 
+      // but since we're implementing the basic feature here, we defer it for now
+    }
+
 
     animationIdRef.current = requestAnimationFrame(drawFrame)
   }
@@ -1537,7 +1712,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
         cancelAnimationFrame(animationIdRef.current)
       }
     }
-  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, eyeGemOffsetX, eyeGemOffsetY, eyeGemScale, eyeGemRotation, noseStudOffsetX, noseStudOffsetY, noseStudScale, noseStudRotation, currentFilter, use4Grid, useHeartFilter, useBowFilter, useEyeGem, useNoseStud, currentBorder, showVijayImage, useGrain, disableHandTracking])
+  }, [isWebcamActive, offsetX, offsetY, scale, rotation, bowOffsetX, bowOffsetY, bowScale, bowRotation, eyeGemOffsetX, eyeGemOffsetY, eyeGemScale, eyeGemRotation, noseStudOffsetX, noseStudOffsetY, noseStudScale, noseStudRotation, currentFilter, use4Grid, useStretch, useHeartFilter, useBowFilter, useEyeGem, useNoseStud, currentBorder, showVijayImage, useGrain, disableHandTracking])
 
   // Preload gallery images when gallery opens
   useEffect(() => {
@@ -2672,86 +2847,105 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
                   borderRadius: '2px'
                 }}>
+                  {/* Colours Selector with Arrows */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px'
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      color: '#000080'
+                    }}>
+                      Colours:
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      alignItems: 'center'
+                    }}>
+                      <button
+                        onClick={() => {
+                          playClickSound()
+                          if (currentFilter === 'normal') {
+                            setCurrentFilter('aesthetic')
+                          } else if (currentFilter === 'blackAndWhite') {
+                            setCurrentFilter('normal')
+                          } else if (currentFilter === 'aesthetic') {
+                            setCurrentFilter('blackAndWhite')
+                          }
+                        }}
+                        disabled={!isWebcamActive}
+                        style={{
+                          padding: '2px 5px',
+                          cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          outline: 'none',
+                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                          border: '1px solid',
+                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                          opacity: isWebcamActive ? 1 : 0.5
+                        }}
+                      >
+                        ◀
+                      </button>
+                      <span style={{
+                        fontSize: '10px',
+                        minWidth: '50px',
+                        textAlign: 'center',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}>
+                        {currentFilter === 'normal' ? 'Normal' : currentFilter === 'blackAndWhite' ? 'B&W' : 'Tint'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          playClickSound()
+                          if (currentFilter === 'normal') {
+                            setCurrentFilter('blackAndWhite')
+                          } else if (currentFilter === 'blackAndWhite') {
+                            setCurrentFilter('aesthetic')
+                          } else if (currentFilter === 'aesthetic') {
+                            setCurrentFilter('normal')
+                          }
+                        }}
+                        disabled={!isWebcamActive}
+                        style={{
+                          padding: '2px 5px',
+                          cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          outline: 'none',
+                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                          border: '1px solid',
+                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                          opacity: isWebcamActive ? 1 : 0.5
+                        }}
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Add-Ons ☆ Heading */}
                   <div style={{
                     fontSize: '11px',
                     fontWeight: 'bold',
+                    marginTop: '8px',
                     marginBottom: '5px',
                     color: '#000080'
                   }}>
-                    Filters:
+                    Add-Ons ☆
                   </div>
-                  <button
-                    onClick={() => {
-                      playClickSound()
-                      setCurrentFilter('normal')
-                    }}
-                    disabled={!isWebcamActive}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: currentFilter === 'normal' ? '#000080' : isWebcamActive ? '#c0c0c0' : '#a0a0a0',
-                      color: currentFilter === 'normal' ? 'white' : isWebcamActive ? 'black' : '#606060',
-                      border: '1px solid',
-                      borderColor: currentFilter === 'normal' ? '#000080' : isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
-                      cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      outline: 'none',
-                      opacity: isWebcamActive ? 1 : 0.5
-                    }}
-                  >
-                    Normal
-                  </button>
-                  <button
-                    onClick={() => {
-                      playClickSound()
-                      setCurrentFilter('blackAndWhite')
-                    }}
-                    disabled={!isWebcamActive}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: currentFilter === 'blackAndWhite' ? '#000080' : isWebcamActive ? '#c0c0c0' : '#a0a0a0',
-                      color: currentFilter === 'blackAndWhite' ? 'white' : isWebcamActive ? 'black' : '#606060',
-                      border: '1px solid',
-                      borderColor: currentFilter === 'blackAndWhite' ? '#000080' : isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
-                      cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      outline: 'none',
-                      opacity: isWebcamActive ? 1 : 0.5
-                    }}
-                  >
-                    B&W
-                  </button>
-                  <button
-                    onClick={() => {
-                      playClickSound()
-                      setCurrentFilter('aesthetic')
-                    }}
-                    disabled={!isWebcamActive}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: currentFilter === 'aesthetic' ? '#8b4789' : isWebcamActive ? '#c0c0c0' : '#a0a0a0',
-                      color: currentFilter === 'aesthetic' ? 'white' : isWebcamActive ? 'black' : '#606060',
-                      border: '1px solid',
-                      borderColor: currentFilter === 'aesthetic' ? '#8b4789' : isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
-                      cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      outline: 'none',
-                      opacity: isWebcamActive ? 1 : 0.5
-                    }}
-                  >
-                    Tint
-                  </button>
 
                   {/* Heart Filter Toggle Checkbox */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    marginTop: '8px',
-                    paddingTop: '8px',
-                    borderTop: '1px solid #808080'
+                    marginTop: '0px'
                   }}>
                     <input
                       type="checkbox"
@@ -2861,7 +3055,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    marginTop: '8px',
+                    marginTop: '5px',
                     paddingLeft: '0px'
                   }}>
                     <input
@@ -2893,48 +3087,12 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     </label>
                   </div>
 
-                  {/* 4 Grid Toggle Checkbox */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginTop: '8px'
-                  }}>
-                    <input
-                      type="checkbox"
-                      id="fourGridToggle"
-                      checked={use4Grid}
-                      onChange={(e) => {
-                        playClickSound()
-                        setUse4Grid(e.target.checked)
-                      }}
-                      disabled={!isWebcamActive}
-                      style={{
-                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                        width: '14px',
-                        height: '14px',
-                        opacity: isWebcamActive ? 1 : 0.5
-                      }}
-                    />
-                    <label
-                      htmlFor="fourGridToggle"
-                      style={{
-                        fontSize: '11px',
-                        cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                        userSelect: 'none',
-                        opacity: isWebcamActive ? 1 : 0.5
-                      }}
-                    >
-                      4 Grid View
-                    </label>
-                  </div>
-
                   {/* Grain Filter Checkbox */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    marginTop: '8px'
+                    marginTop: '5px'
                   }}>
                     <input
                       type="checkbox"
@@ -2965,9 +3123,94 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                     </label>
                   </div>
 
+                  {/* View Selector with Arrows */}
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '5px',
+                    marginTop: '8px'
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      color: '#000080'
+                    }}>
+                      View:
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      alignItems: 'center'
+                    }}>
+                      <button
+                        onClick={() => {
+                          playClickSound()
+                          if (use4Grid) {
+                            setUse4Grid(false)
+                            setUseStretch(false)
+                          } else if (useStretch) {
+                            setUseStretch(false)
+                          } else {
+                            setUseStretch(true)
+                          }
+                        }}
+                        disabled={!isWebcamActive}
+                        style={{
+                          padding: '2px 5px',
+                          cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          outline: 'none',
+                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                          border: '1px solid',
+                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                          opacity: isWebcamActive ? 1 : 0.5
+                        }}
+                      >
+                        ◀
+                      </button>
+                      <span style={{
+                        fontSize: '10px',
+                        minWidth: '50px',
+                        textAlign: 'center',
+                        opacity: isWebcamActive ? 1 : 0.5
+                      }}>
+                        {use4Grid ? '4 Grid' : useStretch ? 'Double' : 'Normal'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          playClickSound()
+                          if (!use4Grid && !useStretch) {
+                            setUse4Grid(true)
+                          } else if (use4Grid) {
+                            setUse4Grid(false)
+                            setUseStretch(true)
+                          } else if (useStretch) {
+                            setUseStretch(false)
+                          }
+                        }}
+                        disabled={!isWebcamActive}
+                        style={{
+                          padding: '2px 5px',
+                          cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                          fontSize: '9px',
+                          fontWeight: 'bold',
+                          outline: 'none',
+                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                          border: '1px solid',
+                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                          opacity: isWebcamActive ? 1 : 0.5
+                        }}
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Border Selection */}
                   <div style={{ marginTop: '10px' }}>
-                    <div style={{ fontSize: '11px', marginBottom: '5px', opacity: isWebcamActive ? 1 : 0.5 }}>Borders:</div>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '5px', color: '#000080', opacity: isWebcamActive ? 1 : 0.5 }}>Borders:</div>
                     <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                       <button
                         onClick={() => {
@@ -2979,21 +3222,19 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                         }}
                         disabled={!isWebcamActive}
                         style={{
-                          width: '20px',
-                          height: '20px',
-                          padding: '0',
-                          fontSize: '10px',
+                          padding: '2px 5px',
                           cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
-                          border: '2px solid',
-                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
-                          color: '#000080',
+                          fontSize: '9px',
                           fontWeight: 'bold',
-                          opacity: isWebcamActive ? 1 : 0.5,
-                          outline: 'none'
+                          outline: 'none',
+                          boxShadow: 'none',
+                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                          border: '1px solid',
+                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                          opacity: isWebcamActive ? 1 : 0.5
                         }}
                       >
-                        &lt;
+                        ◀
                       </button>
                       <span style={{ fontSize: '11px', minWidth: '60px', textAlign: 'center' }}>
                         {currentBorder === 'none' ? 'None' :
@@ -3016,21 +3257,19 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                         }}
                         disabled={!isWebcamActive}
                         style={{
-                          width: '20px',
-                          height: '20px',
-                          padding: '0',
-                          fontSize: '10px',
+                          padding: '2px 5px',
                           cursor: isWebcamActive ? 'pointer' : 'not-allowed',
-                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
-                          border: '2px solid',
-                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
-                          color: '#000080',
+                          fontSize: '9px',
                           fontWeight: 'bold',
-                          opacity: isWebcamActive ? 1 : 0.5,
-                          outline: 'none'
+                          outline: 'none',
+                          boxShadow: 'none',
+                          backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                          border: '1px solid',
+                          borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                          opacity: isWebcamActive ? 1 : 0.5
                         }}
                       >
-                        &gt;
+                        ▶
                       </button>
                     </div>
                   </div>
@@ -3065,6 +3304,42 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       Vijay
                     </label>
                   </div>
+
+                  {/* Reset Controls Button */}
+                  <button
+                    onClick={() => {
+                      playClickSound()
+                      setCurrentFilter('normal')
+                      setCurrentBorder('none')
+                      setUseHeartFilter(false)
+                      setUseBowFilter(false)
+                      setUseEyeGem(false)
+                      setUseNoseStud(false)
+                      setUseGrain(true)
+                      setUse4Grid(false)
+                      setUseStretch(false)
+                    }}
+                    disabled={!isWebcamActive}
+                    style={{
+                      marginTop: '8px',
+                      padding: '3px 8px',
+                      backgroundColor: isWebcamActive ? '#c0c0c0' : '#a0a0a0',
+                      color: '#000080',
+                      border: '2px solid',
+                      borderColor: isWebcamActive ? '#dfdfdf #808080 #808080 #dfdfdf' : '#808080 #dfdfdf #dfdfdf #808080',
+                      cursor: isWebcamActive ? 'pointer' : 'not-allowed',
+                      fontWeight: 'bold',
+                      fontSize: '10px',
+                      fontFamily: 'MS Sans Serif, Arial, sans-serif',
+                      outline: 'none',
+                      boxShadow: 'none',
+                      opacity: isWebcamActive ? 1 : 0.5,
+                      width: '100%',
+                      textAlign: 'center'
+                    }}
+                  >
+                    Reset Controls
+                  </button>
                 </div>
               </div>
 
@@ -3089,7 +3364,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                   border: '1px solid',
                   borderColor: '#dfdfdf #808080 #808080 #dfdfdf',
                   padding: '10px',
-                  marginTop: '-130px',
+                  marginTop: '-120px',
                   marginLeft: '-150px',
                   marginBottom: '10px',
                   fontSize: '11px',
@@ -3473,13 +3748,13 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
               <button
                 onClick={() => {
                   playClickSound()
-                  setOffsetX(-22)
-                  setOffsetY(-289)
-                  setScale(1.6)
+                  setOffsetX(-39)
+                  setOffsetY(-279)
+                  setScale(1.9)
                   setRotation(0)
                   setBowOffsetX(0)
                   setBowOffsetY(-15)
-                  setBowScale(0.2)
+                  setBowScale(0.12)
                   setBowRotation(35)
                 }}
                 style={{
@@ -5212,7 +5487,10 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
           >
             <h1 style={{ margin: '2px 4px', fontSize: '14px', fontWeight: 'bold' }}>Gallery ⋆｡°✩</h1>
             <button 
-              onClick={() => setShowGallery(false)}
+              onClick={() => {
+                playClickSound()
+                setShowGallery(false)
+              }}
               style={{
                 marginLeft: 'auto',
                 padding: '2px 6px',
