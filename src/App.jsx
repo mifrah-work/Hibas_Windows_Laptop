@@ -173,6 +173,7 @@ function App() {
   const [noseStudRotation, setNoseStudRotation] = useState(0)
   
   const [isWebcamActive, setIsWebcamActive] = useState(false)
+  const [isCapturing, setIsCapturing] = useState(false)
   const [cameraError, setCameraError] = useState(null)
   const [showAbout, setShowAbout] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
@@ -1800,6 +1801,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
     }
 
     isCapturingRef.current = true
+    setIsCapturing(true)
 
     try {
       // Define notification messages based on face count
@@ -1880,6 +1882,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
       console.error('Error during capture:', error)
     } finally {
       isCapturingRef.current = false
+      setIsCapturing(false)
     }
   }
 
@@ -3459,17 +3462,17 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                 </button>
                 <button
                   onClick={handleCaptureWithTimer}
-                  disabled={!isWebcamActive}
+                  disabled={!isWebcamActive || isCapturing}
                   className="btn btn-capture"
                   style={{
                     outline: 'none',
-                    color: !isWebcamActive ? '#888888' : '#000080',
+                    color: !isWebcamActive || isCapturing ? '#888888' : '#000080',
                     fontWeight: 'bold',
-                    opacity: !isWebcamActive ? 0.5 : 1,
-                    cursor: !isWebcamActive ? 'not-allowed' : 'pointer',
-                    backgroundColor: !isWebcamActive ? '#d0d0d0' : '#c0c0c0',
+                    opacity: !isWebcamActive || isCapturing ? 0.5 : 1,
+                    cursor: !isWebcamActive || isCapturing ? 'not-allowed' : 'pointer',
+                    backgroundColor: !isWebcamActive || isCapturing ? '#d0d0d0' : '#c0c0c0',
                     border: '2px solid',
-                    borderColor: !isWebcamActive ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf'
+                    borderColor: !isWebcamActive || isCapturing ? '#808080 #dfdfdf #dfdfdf #808080' : '#dfdfdf #808080 #808080 #dfdfdf'
                   }}
                 >
                   ● Capture
