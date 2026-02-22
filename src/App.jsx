@@ -3292,6 +3292,7 @@ const [downloadsPos, setDownloadsPos] = useState({ x: 48, y: 485 })
                       setUseEyeGem(false)
                       setUseNoseStud(false)
                       setUseGrain(true)
+                      setShowVijayImage(true)
                       setUse4Grid(false)
                       setUseStretch(false)
                     }}
